@@ -6,9 +6,11 @@ import {
   assertBaseProjection,
   assertRunOrdinals,
   assertSemanticProjectionIntegrity,
-  assertTurnItemTypes,
+  assertTurnItemTypeSequence,
+  assertVisibleTurnItemTypeSequence,
+  assertVisibleUserMessagesExclude,
+  assertVisibleUserMessagesInclude,
   assertUserMessagesInclude,
-  assertVisibleTurnItemsMirrorLocalTurnItems,
   projectionFor,
   THREAD_ROLLBACK_AFTER_PROMPT,
   THREAD_ROLLBACK_FIRST_PROMPT,
@@ -28,14 +30,36 @@ export function assertThreadRollbackOutput(
 
   const projection = projectionFor(result, transcript.scenario);
   assertSemanticProjectionIntegrity(projection);
-  assertVisibleTurnItemsMirrorLocalTurnItems(projection);
   assertRunOrdinals(projection, [1, 2, 3]);
-  assertTurnItemTypes(projection, ["user_message", "assistant_message", "checkpoint"]);
+  assertTurnItemTypeSequence(projection, [
+    "user_message",
+    "assistant_message",
+    "checkpoint",
+    "user_message",
+    "assistant_message",
+    "checkpoint",
+    "user_message",
+    "assistant_message",
+    "checkpoint",
+  ]);
+  assertVisibleTurnItemTypeSequence(projection, [
+    "user_message",
+    "assistant_message",
+    "checkpoint",
+    "user_message",
+    "assistant_message",
+    "checkpoint",
+  ]);
   assertUserMessagesInclude(projection, [
     THREAD_ROLLBACK_FIRST_PROMPT,
     THREAD_ROLLBACK_SECOND_PROMPT,
     THREAD_ROLLBACK_AFTER_PROMPT,
   ]);
+  assertVisibleUserMessagesInclude(projection, [
+    THREAD_ROLLBACK_FIRST_PROMPT,
+    THREAD_ROLLBACK_AFTER_PROMPT,
+  ]);
+  assertVisibleUserMessagesExclude(projection, [THREAD_ROLLBACK_SECOND_PROMPT]);
   assert.isAtLeast(projection.checkpoints.length, 2);
   assert.isTrue(
     projection.runs.some((run) => run.status === "rolled_back"),
