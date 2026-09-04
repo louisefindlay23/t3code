@@ -69,6 +69,9 @@ write a diagnostic record. These limits apply to logging; provider event handlin
 
 Codex thread resume requests exclude historical turns when only the thread identity and update time
 are needed. The adapter decodes those metadata fields without loading a duplicate transcript.
+Its initialization capabilities opt out of `turn/diff/updated`: T3 derives diffs from checkpoints
+and does not consume the provider's cumulative diff notifications. The logger also filters those
+notifications before traversal when an older provider still sends them.
 
 ## Registry and routing
 
