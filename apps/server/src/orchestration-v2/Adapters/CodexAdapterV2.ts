@@ -173,6 +173,7 @@ const CODEX_CLIENT_INFO = {
 } as const;
 const CODEX_CLIENT_CAPABILITIES = {
   experimentalApi: true,
+  optOutNotificationMethods: ["turn/diff/updated"],
 } as const;
 
 export const CodexProviderCapabilitiesV2 = {
