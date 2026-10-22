@@ -122,9 +122,10 @@ jobs:
             git push origin "refs/tags/$release_tag"
           fi
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
-          Patched T3 Code nightly based on upstream **$source_tag**.
+          Patched T3 Code nightly.
 
-          Source commit: `$source_sha`
+          Source nightly: $source_tag
+          Source commit: $source_sha
 
           Includes the confirmed sidebar fixes:
           - Order active threads by the latest message or run activity.
