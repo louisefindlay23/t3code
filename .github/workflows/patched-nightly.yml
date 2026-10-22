@@ -298,6 +298,11 @@ jobs:
           RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
         run: |
           set -euo pipefail
-          release_id="$(gh api "repos/$FORK_REPOSITORY/releases/tags/$RELEASE_TAG" --jq .id)"
+          release_id="$(gh api "repos/$FORK_REPOSITORY/releases?per_page=100" \
+            --jq --arg tag "$RELEASE_TAG" '[.[] | select(.tag_name == $tag)] | first | .id')"
+          if [[ -z "$release_id" || "$release_id" == "null" ]]; then
+            echo "Draft release $RELEASE_TAG was not found." >&2
+            exit 1
+          fi
           gh api --method PATCH "repos/$FORK_REPOSITORY/releases/$release_id" \
             -F draft=false -F prerelease=true >/dev/null
