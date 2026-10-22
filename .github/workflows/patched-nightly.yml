@@ -222,8 +222,6 @@ jobs:
         include:
           - arch: arm64
             rust_target: aarch64-apple-darwin
-          - arch: x64
-            rust_target: x86_64-apple-darwin
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
