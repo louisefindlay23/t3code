@@ -165,6 +165,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch --no-tags https://github.com/pingdotgg/t3code.git "$SOURCE_TAG"
           git checkout --detach 'FETCH_HEAD^{commit}'
           while IFS= read -r patch_commit; do
@@ -198,7 +200,7 @@ jobs:
           T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          vp exec tsx scripts/build-desktop-artifact.ts \
+          node scripts/build-desktop-artifact.ts \
             --platform win --target nsis --arch x64 \
             --build-version "$BUILD_VERSION" \
             --output-dir release-patched
@@ -239,6 +241,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch --no-tags https://github.com/pingdotgg/t3code.git "$SOURCE_TAG"
           git checkout --detach 'FETCH_HEAD^{commit}'
           while IFS= read -r patch_commit; do
@@ -272,7 +276,7 @@ jobs:
           T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          vp exec tsx scripts/build-desktop-artifact.ts \
+          node scripts/build-desktop-artifact.ts \
             --platform mac --target dmg --arch "${{ matrix.arch }}" \
             --build-version "$BUILD_VERSION" \
             --output-dir "release-patched-${{ matrix.arch }}"
