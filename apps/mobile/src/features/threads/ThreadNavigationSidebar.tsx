@@ -76,6 +76,7 @@ import {
   isThreadListV2ListItem,
   threadListV2ListItemsAreEqual,
   threadListInboxReturns,
+  filterThreadListV2ConnectedThreads,
   THREAD_LIST_V2_SETTLED_INITIAL_COUNT,
   THREAD_LIST_V2_SETTLED_PAGE_COUNT,
   type ThreadListV2ListItem,
@@ -138,6 +139,19 @@ function ThreadNavigationSidebarPane(
   const projects = useProjects();
   const threads = useNavigationThreadShells();
   const { environments: workspaceEnvironments, state: catalogState } = useWorkspaceState();
+  const connectedEnvironmentIds = useMemo(
+    () =>
+      new Set(
+        workspaceEnvironments
+          .filter((environment) => environment.connectionState === "connected")
+          .map((environment) => environment.environmentId),
+      ),
+    [workspaceEnvironments],
+  );
+  const connectedThreads = useMemo(
+    () => filterThreadListV2ConnectedThreads(threads, connectedEnvironmentIds),
+    [threads, connectedEnvironmentIds],
+  );
   const { savedConnectionsById } = useSavedRemoteConnections();
   const searchInputRef = useRef<TextInputInstance>(null);
   const searchBarRef = useRef<SearchBarCommands>(null);
@@ -306,13 +320,13 @@ function ThreadNavigationSidebarPane(
   const threadMoveAvailability = (() => {
     const sectionAvailability = (section: "pinned" | "active") =>
       computeThreadMoveAvailability({
-        allThreads: threads,
+        allThreads: connectedThreads,
         section,
         pendingOrder,
         reorderableEnvironmentIds:
           section === "pinned" ? pinReorderEnvironmentIds : activeReorderEnvironmentIds,
         ordered: getThreadListV2OrderedSection({
-          threads,
+          threads: connectedThreads,
           section,
           pendingOrder,
           now,
@@ -330,7 +344,7 @@ function ThreadNavigationSidebarPane(
     threadListInboxReturns.observe(workingShelfEnabled ? threads : null);
     return buildThreadListV2Items({
       pendingOrder,
-      threads: threads.filter((thread) => thread.archivedAt === null),
+      threads: connectedThreads.filter((thread) => thread.archivedAt === null),
       environmentId: options.selectedEnvironmentId,
       projectRefs: selectedProjectScope === null ? null : selectedProjectScope.projectRefs,
       searchQuery: props.searchQuery,
