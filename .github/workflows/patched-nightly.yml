@@ -48,14 +48,21 @@ jobs:
             exit 1
           fi
 
+          patch_commits="$(git log --reverse --format='%H' --grep='^patch:' "$PATCH_BASE_SHA..$WORKFLOW_SHA")"
+          if [[ -z "$patch_commits" ]]; then
+            echo "No patch commits were found after $PATCH_BASE." >&2
+            exit 1
+          fi
+          patch_set="$(printf '%s\n' "$patch_commits" | sha256sum | cut -c1-16)"
+
           releases="$(gh api "repos/$FORK_REPOSITORY/releases?per_page=100")"
-          prior="$(jq -r --arg source "Source nightly: $source_tag" \
-            '[.[] | select((.body // "") | contains($source))] | first // empty' <<<"$releases")"
+          prior="$(jq -r --arg source "Source nightly: $source_tag" --arg patch_set "Patch set: $patch_set" \
+            '[.[] | select(((.body // "") | contains($source)) and ((.body // "") | contains($patch_set)))] | first // empty' <<<"$releases")"
           if [[ -n "$prior" ]]; then
             release_tag="$(jq -r '.tag_name' <<<"$prior")"
             draft="$(jq -r '.draft' <<<"$prior")"
             if [[ "$draft" != "true" ]]; then
-              echo "Upstream nightly $source_tag is already published as $release_tag; no build needed."
+              echo "Upstream nightly $source_tag with patch set $patch_set is already published as $release_tag; no build needed."
               echo "should_build=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -73,17 +80,18 @@ jobs:
             fork_max="$(jq -r --arg prefix "$prefix" \
               '[.[] | .tag_name | select(startswith($prefix)) | ltrimstr($prefix) | select(test("^[0-9]+$")) | tonumber] | max // 0' \
               <<<"$releases")"
+            for existing_tag in $(git tag -l "${prefix}*"); do
+              tag_number="${existing_tag#"$prefix"}"
+              if [[ "$tag_number" =~ ^[0-9]+$ ]] && (( tag_number > fork_max )); then
+                fork_max="$tag_number"
+              fi
+            done
             next_number=$((source_number + 1))
             if (( fork_max >= next_number )); then next_number=$((fork_max + 1)); fi
             version="${product_version}-nightly.${nightly_date}.${next_number}"
             release_tag="v$version"
           fi
 
-          patch_commits="$(git log --reverse --format='%H' --grep='^patch:' "$PATCH_BASE_SHA..$WORKFLOW_SHA")"
-          if [[ -z "$patch_commits" ]]; then
-            echo "No patch commits were found after $PATCH_BASE." >&2
-            exit 1
-          fi
           printf 'should_build=true\nsource_tag=%s\nrelease_tag=%s\nversion=%s\n' \
             "$source_tag" "$release_tag" "$version" >> "$GITHUB_OUTPUT"
           {
@@ -126,6 +134,7 @@ jobs:
 
           Source nightly: $source_tag
           Source commit: $source_sha
+          Patch set: $patch_set
 
           Includes the confirmed sidebar fixes:
           - Order active threads by the latest message or run activity.
@@ -199,8 +208,10 @@ jobs:
         shell: bash
         env:
           T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
+          T3CODE_SERVER_UPDATE_VERSION: ${{ needs.resolve.outputs.source_tag }}
         run: |
           set -euo pipefail
+          export T3CODE_SERVER_UPDATE_VERSION="${T3CODE_SERVER_UPDATE_VERSION#v}"
           node scripts/build-desktop-artifact.ts \
             --platform win --target nsis --arch x64 \
             --build-version "$BUILD_VERSION" \
@@ -273,8 +284,10 @@ jobs:
         shell: bash
         env:
           T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
+          T3CODE_SERVER_UPDATE_VERSION: ${{ needs.resolve.outputs.source_tag }}
         run: |
           set -euo pipefail
+          export T3CODE_SERVER_UPDATE_VERSION="${T3CODE_SERVER_UPDATE_VERSION#v}"
           node scripts/build-desktop-artifact.ts \
             --platform mac --target dmg --arch "${{ matrix.arch }}" \
             --build-version "$BUILD_VERSION" \
