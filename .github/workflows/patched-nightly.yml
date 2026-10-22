@@ -103,6 +103,8 @@ jobs:
             echo "Upstream nightly $source_tag does not contain the patch base $PATCH_BASE; refusing to apply patches to an older source." >&2
             exit 1
           fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --detach "$source_sha"
           while IFS= read -r patch_commit; do
             [[ -z "$patch_commit" ]] && continue
