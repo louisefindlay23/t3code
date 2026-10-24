@@ -152,13 +152,13 @@ describe("queued messages keep a settled thread active", () => {
 });
 
 describe("sortThreadsForListV2", () => {
-  it("honors a saved active order and leaves new threads above it", () => {
+  it("sorts active threads by latest activity before saved order", () => {
     const sorted = sortThreadsForListV2([
       { id: "newer-arranged", createdAt: "2026-06-01T12:00:00.000Z", activeOrderKey: "t" },
       { id: "older-arranged", createdAt: "2026-06-01T08:00:00.000Z", activeOrderKey: "f" },
       { id: "new", createdAt: "2026-06-01T13:00:00.000Z" },
     ]);
-    expect(sorted.map((thread) => thread.id)).toEqual(["new", "older-arranged", "newer-arranged"]);
+    expect(sorted.map((thread) => thread.id)).toEqual(["new", "newer-arranged", "older-arranged"]);
   });
 });
 
@@ -719,7 +719,8 @@ describe("pending mobile thread moves", () => {
       makeThread({
         id: ThreadId.make(id),
         title: id === "a" ? "hidden" : "match",
-        createdAt: `2026-06-01T0${3 - index}:00:00.000Z`,
+        createdAt: "2026-06-01T03:00:00.000Z",
+        updatedAt: "2026-06-01T03:00:00.000Z",
         pinnedAt: section === "pinned" ? `2026-06-01T0${3 - index}:00:00.000Z` : null,
       }),
     );
