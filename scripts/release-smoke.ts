@@ -58,6 +58,13 @@ function copyWorkspaceManifestFixture(targetRoot: string): void {
     NodeFS.cpSync(sourcePath, destinationPath);
   }
 
+  // A fresh resolution may select versions outside the exact patch selectors;
+  // the smoke test checks release versioning, not patch coverage.
+  NodeFS.appendFileSync(
+    NodePath.resolve(targetRoot, "pnpm-workspace.yaml"),
+    "\nallowUnusedPatches: true\n",
+  );
+
   const mobileDependencies = NodePath.resolve(repoRoot, "apps/mobile/deps");
   if (NodeFS.existsSync(mobileDependencies)) {
     NodeFS.cpSync(mobileDependencies, NodePath.resolve(targetRoot, "apps/mobile/deps"), {

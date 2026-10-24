@@ -235,7 +235,7 @@ describe("generateSpreadPinOrderKeys", () => {
 });
 
 describe("sortActiveThreadsByOrderKey", () => {
-  it("keeps new and reopened threads ahead of the saved order", () => {
+  it("sorts by latest activity before using the saved order as a tiebreaker", () => {
     const sorted = sortActiveThreadsByOrderKey([
       {
         id: "arranged-first",
@@ -260,10 +260,10 @@ describe("sortActiveThreadsByOrderKey", () => {
       },
     ]);
     expect(sorted.map((thread) => thread.id)).toEqual([
+      "arranged-last",
       "reopened",
       "new",
       "arranged-first",
-      "arranged-last",
     ]);
   });
 
