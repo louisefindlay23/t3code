@@ -96,6 +96,13 @@ An empty database is a bad test. Seed your worktree's `.t3` with a copy of real 
 - Bring `secrets` and `settings.json` only if the flow under test needs them.
 - Copy in, never symlink. Data flows one way: into your sandbox, never back out.
 
+## Build and installer completion gate
+
+- For implementation work that changes a shipped client, build the matching installable artifact before handoff and include its path in the final report. This applies even when the request sounds like a small patch or focused checks pass. On Apple Silicon macOS, use `vp run dist:desktop:dmg:arm64`; use the matching `dist:desktop:*` target for other desktop platforms and architectures.
+- Build user-facing installers with T3 Connect enabled. Verify `T3CODE_CLERK_PUBLISHABLE_KEY`, `T3CODE_CLERK_JWT_TEMPLATE`, `T3CODE_CLERK_CLI_OAUTH_CLIENT_ID`, and `T3CODE_RELAY_URL` resolve through `scripts/lib/public-config.ts`. Never copy telemetry tokens or other credentials into build files or the environment.
+- GitHub Actions `CI` runs `Lint` for every pull request, but `.github/scripts/ci-changes.cjs` treats root Markdown files such as `AGENTS.md` as inert, so a docs-only change skips `Build and Typecheck`. When build verification is requested for a docs-only change, run `vp run build:desktop` locally and report that result separately from GitHub Actions.
+- Before merging source changes, wait for the GitHub Actions `Check` gate and the relevant `Build and Typecheck` job. A green docs-only `Check` does not prove the app builds.
+
 ## Verifying
 
 - Before you push, run `vp run check:changed`. It runs CI's fast checks for changed files: format, lint, knip, typecheck of affected packages and dependents, and tests beside changes. CI still runs the full test suites.
