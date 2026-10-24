@@ -28,6 +28,25 @@ it("preserves in-app thread links through the shared Markdown sanitizer", () => 
   expect(JSON.stringify(tree)).not.toContain("javascript:");
 });
 
+it("renders Codex memory citation markers as readable source labels", () => {
+  const processor = unified()
+    .use(remarkParse)
+    .use(CHAT_MARKDOWN_REMARK_PLUGINS)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(CHAT_MARKDOWN_REHYPE_PLUGINS);
+  const tree = processor.runSync(
+    processor.parse("See citeMEMORY.md:165-200 and citeAGENTS.md:9."),
+  );
+  type Node = { type: string; value?: string; tagName?: string; children?: Node[] };
+  const codeLabels = (node: Node): string[] =>
+    node.tagName === "code"
+      ? [(node.children ?? []).map((child) => child.value ?? "").join("")]
+      : (node.children ?? []).flatMap(codeLabels);
+
+  expect(codeLabels(tree as Node)).toEqual(["MEMORY.md · lines 165–200", "AGENTS.md · line 9"]);
+  expect(JSON.stringify(tree)).not.toContain("cite");
+});
+
 it("keeps backslashes that CommonMark would read as escapes in prose Windows paths", () => {
   const processor = unified()
     .use(remarkParse)
