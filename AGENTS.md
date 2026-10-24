@@ -103,6 +103,12 @@ An empty database is a bad test. Seed your worktree's `.t3` with a copy of real 
 - GitHub Actions `CI` runs `Lint` for every pull request, but `.github/scripts/ci-changes.cjs` treats root Markdown files such as `AGENTS.md` as inert, so a docs-only change skips `Build and Typecheck`. When build verification is requested for a docs-only change, run `vp run build:desktop` locally and report that result separately from GitHub Actions.
 - Before merging source changes, wait for the GitHub Actions `Check` gate and the relevant `Build and Typecheck` job. A green docs-only `Check` does not prove the app builds.
 
+## Patched nightly commits
+
+- `.github/workflows/patched-nightly.yml` cherry-picks only fork commits after its configured patch base whose subject starts exactly with `patch:`. Use `patch: short description` for a self-contained product change intended for the patched nightly; `patch(scope):` and ordinary `fix:` commits are not selected.
+- Keep each `patch:` commit independently cherry-pickable onto the latest upstream nightly. Include code, tests, and fixtures needed for that product change; keep fork-only CI, workflow, and documentation changes in their normal `ci:`, `docs:`, or other commits so they are not copied into the app release.
+- Do not broaden the workflow to include every `fix:` commit: unrelated CI or maintenance fixes can then be applied to upstream nightly sources. Check the exact patch commit list and confirm it applies cleanly when changing the patch base or release workflow.
+
 ## Verifying
 
 - Before you push, run `vp run check:changed`. It runs CI's fast checks for changed files: format, lint, knip, typecheck of affected packages and dependents, and tests beside changes. CI still runs the full test suites.
