@@ -1039,6 +1039,8 @@ describe("Working shelf (beta)", () => {
       id: ThreadId.make(id),
       environmentId: localEnvironmentId,
       createdAt: input.createdAt,
+      updatedAt: input.createdAt,
+      latestUserMessageAt: null,
       unsettledAt: input.unsettledAt ?? null,
       latestRun:
         input.completedAt === undefined
