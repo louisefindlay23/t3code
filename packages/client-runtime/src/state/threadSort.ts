@@ -118,11 +118,14 @@ function activeThreadAnchorTimestampMs(thread: {
   readonly unsettledAt?: string | null | undefined;
   readonly updatedAt?: string | undefined;
   readonly latestUserMessageAt?: string | null | undefined;
-  readonly latestRun?: {
-    readonly requestedAt?: string | null | undefined;
-    readonly startedAt?: string | null | undefined;
-    readonly completedAt?: string | null | undefined;
-  } | null | undefined;
+  readonly latestRun?:
+    | {
+        readonly requestedAt?: string | null | undefined;
+        readonly startedAt?: string | null | undefined;
+        readonly completedAt?: string | null | undefined;
+      }
+    | null
+    | undefined;
 }): number {
   return Math.max(
     toSortableTimestamp(thread.createdAt) ?? 0,
@@ -314,11 +317,14 @@ export function sortActiveThreadsByOrderKey<
     readonly unsettledAt?: string | null | undefined;
     readonly updatedAt?: string | undefined;
     readonly latestUserMessageAt?: string | null | undefined;
-    readonly latestRun?: {
-      readonly requestedAt?: string | null | undefined;
-      readonly startedAt?: string | null | undefined;
-      readonly completedAt?: string | null | undefined;
-    } | null | undefined;
+    readonly latestRun?:
+      | {
+          readonly requestedAt?: string | null | undefined;
+          readonly startedAt?: string | null | undefined;
+          readonly completedAt?: string | null | undefined;
+        }
+      | null
+      | undefined;
     readonly activeOrderKey?: string | null | undefined;
     readonly environmentId?: string | undefined;
   },
