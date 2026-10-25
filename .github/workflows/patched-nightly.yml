@@ -26,6 +26,7 @@ jobs:
       - name: Check out fork main
         uses: actions/checkout@v6
         with:
+          token: ${{ secrets.PATCHED_NIGHTLY_RELEASE_TOKEN }}
           ref: ${{ github.sha }}
           fetch-depth: 0
 
