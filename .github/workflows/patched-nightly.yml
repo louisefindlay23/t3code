@@ -49,7 +49,8 @@ jobs:
             exit 1
           fi
 
-          patch_commits="$(git log --reverse --format='%H' --grep='^patch:' "$PATCH_BASE_SHA..$WORKFLOW_SHA")"
+          patch_commits="$(git log --reverse --format='%H' --grep='^patch:' "$PATCH_BASE_SHA..$WORKFLOW_SHA" \
+            | awk '$0 != "6611d52bdf24eb30ae3708f8fc7718334d1892d5"')"
           if [[ -z "$patch_commits" ]]; then
             echo "No patch commits were found after $PATCH_BASE." >&2
             exit 1
@@ -137,9 +138,10 @@ jobs:
           Source commit: $source_sha
           Patch set: $patch_set
 
-          Includes the confirmed sidebar fixes:
+          Includes these fork fixes:
           - Order active threads by the latest message or run activity.
-          - Hide threads belonging to disconnected environments.
+          - Target NAS server updates at the source upstream nightly.
+          - Render Codex memory citations as readable references.
 
           This is an unsigned personal build. Install only if you trust this fork.
           EOF

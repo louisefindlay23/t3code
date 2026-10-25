@@ -108,6 +108,7 @@ An empty database is a bad test. Seed your worktree's `.t3` with a copy of real 
 - `.github/workflows/patched-nightly.yml` cherry-picks only fork commits after its configured patch base whose subject starts exactly with `patch:`. Use `patch: short description` for a self-contained product change intended for the patched nightly; `patch(scope):` and ordinary `fix:` commits are not selected.
 - Keep each `patch:` commit independently cherry-pickable onto the latest upstream nightly. Include code, tests, and fixtures needed for that product change; keep fork-only CI, workflow, and documentation changes in their normal `ci:`, `docs:`, or other commits so they are not copied into the app release.
 - Do not broaden the workflow to include every `fix:` commit: unrelated CI or maintenance fixes can then be applied to upstream nightly sources. Check the exact patch commit list and confirm it applies cleanly when changing the patch base or release workflow.
+- Never ship a patch the user has explicitly reverted or excluded; filter that commit from the nightly selection and keep the release notes accurate.
 - The workflow's `resolve` job needs the repository secret `PATCHED_NIGHTLY_RELEASE_TOKEN` to push release tags whose upstream source history adds workflow files. Use a fine-grained token limited to this repository with Contents and Workflows write access; pass it only to the `resolve` checkout/tag push. Keep installer asset uploads on `GITHUB_TOKEN`, and never print or commit the token.
 
 ## Verifying
