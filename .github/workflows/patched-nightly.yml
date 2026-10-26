@@ -21,7 +21,6 @@ jobs:
       source_tag: ${{ steps.prepare.outputs.source_tag }}
       release_tag: ${{ steps.prepare.outputs.release_tag }}
       version: ${{ steps.prepare.outputs.version }}
-      patch_commits: ${{ steps.prepare.outputs.patch_commits }}
     steps:
       - name: Check out fork main
         uses: actions/checkout@v6
@@ -49,13 +48,19 @@ jobs:
             exit 1
           fi
 
+          # These source commits no longer cherry-pick cleanly onto current upstream nightlies.
+          # Their maintained ports live in the compatibility patch below.
           patch_commits="$(git log --reverse --format='%H' --grep='^patch:' "$PATCH_BASE_SHA..$WORKFLOW_SHA" \
-            | awk '$0 != "6611d52bdf24eb30ae3708f8fc7718334d1892d5"')"
+            | awk '$0 != "6611d52bdf24eb30ae3708f8fc7718334d1892d5" && $0 != "31a1311b2017ccb5e1b9a86735699b766069fa48"')"
           if [[ -z "$patch_commits" ]]; then
             echo "No patch commits were found after $PATCH_BASE." >&2
             exit 1
           fi
-          patch_set="$(printf '%s\n' "$patch_commits" | sha256sum | cut -c1-16)"
+          compatibility_patch="$RUNNER_TEMP/portable-nightly-fixes.patch"
+          git show "$WORKFLOW_SHA:.github/patches/portable-nightly-fixes.patch" > "$compatibility_patch"
+          compatibility_patch_sha="$(sha256sum "$compatibility_patch" | cut -d' ' -f1)"
+          patch_set="$( { printf '%s\n' "$patch_commits"; printf '%s\n' "$compatibility_patch_sha"; } \
+            | sha256sum | cut -c1-16)"
 
           releases="$(gh api "repos/$FORK_REPOSITORY/releases?per_page=100")"
           prior="$(jq -r --arg source "Source nightly: $source_tag" --arg patch_set "Patch set: $patch_set" \
@@ -96,12 +101,6 @@ jobs:
 
           printf 'should_build=true\nsource_tag=%s\nrelease_tag=%s\nversion=%s\n' \
             "$source_tag" "$release_tag" "$version" >> "$GITHUB_OUTPUT"
-          {
-            echo 'patch_commits<<PATCH_COMMITS_EOF'
-            echo "$patch_commits"
-            echo 'PATCH_COMMITS_EOF'
-          } >> "$GITHUB_OUTPUT"
-
           if [[ -n "$prior" ]]; then
             echo "Reusing incomplete draft release $release_tag for $source_tag."
             exit 0
@@ -120,6 +119,10 @@ jobs:
             [[ -z "$patch_commit" ]] && continue
             git cherry-pick "$patch_commit"
           done <<<"$patch_commits"
+          git apply --check "$compatibility_patch"
+          git apply "$compatibility_patch"
+          git add -u
+          git commit -m "patch: apply portable fork fixes to upstream nightly"
 
           if git show-ref --verify --quiet "refs/tags/$release_tag"; then
             existing_sha="$(git rev-parse "$release_tag^{commit}")"
@@ -140,6 +143,7 @@ jobs:
 
           Includes these fork fixes:
           - Order active threads by the latest message or run activity.
+          - Hide threads belonging to disconnected environments.
           - Target NAS server updates at the source upstream nightly.
           - Render Codex memory citations as readable references.
 
@@ -163,29 +167,21 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
-      SOURCE_TAG: ${{ needs.resolve.outputs.source_tag }}
       BUILD_VERSION: ${{ needs.resolve.outputs.version }}
-      PATCH_COMMITS: ${{ needs.resolve.outputs.patch_commits }}
       T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
     steps:
-      - name: Check out fork workflow and patch commits
+      - name: Check out fork workflow
         uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Check out upstream nightly and apply confirmed patches
+      - name: Check out prepared patched nightly source
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags https://github.com/pingdotgg/t3code.git "$SOURCE_TAG"
+          git fetch --no-tags origin "$RELEASE_TAG"
           git checkout --detach 'FETCH_HEAD^{commit}'
-          while IFS= read -r patch_commit; do
-            [[ -z "$patch_commit" ]] && continue
-            git cherry-pick "$patch_commit"
-          done <<<"$PATCH_COMMITS"
 
       - name: Set up Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
@@ -239,29 +235,21 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
-      SOURCE_TAG: ${{ needs.resolve.outputs.source_tag }}
       BUILD_VERSION: ${{ needs.resolve.outputs.version }}
-      PATCH_COMMITS: ${{ needs.resolve.outputs.patch_commits }}
       T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
     steps:
-      - name: Check out fork workflow and patch commits
+      - name: Check out fork workflow
         uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Check out upstream nightly and apply confirmed patches
+      - name: Check out prepared patched nightly source
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags https://github.com/pingdotgg/t3code.git "$SOURCE_TAG"
+          git fetch --no-tags origin "$RELEASE_TAG"
           git checkout --detach 'FETCH_HEAD^{commit}'
-          while IFS= read -r patch_commit; do
-            [[ -z "$patch_commit" ]] && continue
-            git cherry-pick "$patch_commit"
-          done <<<"$PATCH_COMMITS"
 
       - name: Set up Vite+
         uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb
