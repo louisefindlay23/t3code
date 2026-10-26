@@ -310,6 +310,7 @@ type SidebarOptimisticDrop = {
 interface SidebarThreadPartitionInput {
   readonly threads: readonly EnvironmentThreadShell[];
   readonly scopedProjectKeys: ReadonlySet<string> | null;
+  readonly connectedEnvironmentIds: ReadonlyArray<EnvironmentId>;
   readonly serverConfigs: ReadonlyMap<EnvironmentId, EnvironmentServerConfig>;
   readonly optimisticDrop: SidebarOptimisticDrop | null;
   readonly workingShelfEnabled: boolean;
@@ -368,6 +369,7 @@ function routeThreadOnly(
 function useSidebarThreads(input: {
   readonly projectScopeKey: string | null;
   readonly scopedProjectKeys: ReadonlySet<string> | null;
+  readonly connectedEnvironmentIds: ReadonlyArray<EnvironmentId>;
   readonly serverConfigs: ReadonlyMap<EnvironmentId, EnvironmentServerConfig>;
   readonly optimisticDrop: SidebarOptimisticDrop | null;
   readonly threads: readonly EnvironmentThreadShell[];
@@ -376,6 +378,7 @@ function useSidebarThreads(input: {
   const {
     projectScopeKey,
     scopedProjectKeys,
+    connectedEnvironmentIds,
     serverConfigs,
     optimisticDrop,
     threads,
@@ -417,6 +420,7 @@ function useSidebarThreads(input: {
   const partition = partitionSidebarThreads({
     threads,
     scopedProjectKeys,
+    connectedEnvironmentIds,
     serverConfigs,
     optimisticDrop,
     workingShelfEnabled,
@@ -520,9 +524,20 @@ function useSidebarThreads(input: {
 }
 
 function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
-  const { threads, scopedProjectKeys, serverConfigs, optimisticDrop, workingShelfEnabled } = input;
+  const {
+    threads,
+    scopedProjectKeys,
+    connectedEnvironmentIds,
+    serverConfigs,
+    optimisticDrop,
+    workingShelfEnabled,
+  } = input;
   const preciseNow = new Date().toISOString();
-  const visible = filterSidebarV2VisibleThreads(threads, scopedProjectKeys);
+  const visible = filterSidebarV2VisibleThreads(
+    threads,
+    scopedProjectKeys,
+    connectedEnvironmentIds,
+  );
   const inboxObservation = inboxReturns.observe(workingShelfEnabled ? threads : null);
   const pinned: EnvironmentThreadShell[] = [];
   const active: EnvironmentThreadShell[] = [];
@@ -1134,6 +1149,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   } = useSidebarThreads({
     projectScopeKey,
     scopedProjectKeys,
+    connectedEnvironmentIds: searchEnvironmentIds,
     serverConfigs,
     optimisticDrop,
     threads,
