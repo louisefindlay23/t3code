@@ -289,6 +289,10 @@ jobs:
             echo "Missing App Store Connect notarization secrets; refusing to publish an unnotarized macOS build." >&2
             exit 1
           fi
+          key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          printf '%s' "$APPLE_API_KEY" > "$key_path"
+          chmod 600 "$key_path"
+          export APPLE_API_KEY="$key_path"
           export T3CODE_SERVER_UPDATE_VERSION="${T3CODE_SERVER_UPDATE_VERSION#v}"
           node scripts/build-desktop-artifact.ts \
             --platform mac --target dmg --arch "${{ matrix.arch }}" \
