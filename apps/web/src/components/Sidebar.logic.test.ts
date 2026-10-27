@@ -7,6 +7,7 @@ import { AsyncResult } from "effect/reactivity";
 import {
   archiveSelectedThreadEntries,
   deleteSelectedThreadEntries,
+  filterSidebarV2VisibleThreads,
   getFallbackThreadIdAfterDelete,
   hasUnseenCompletion,
   resolveSidebarRowThreadId,
@@ -634,6 +635,32 @@ function makeThread(overrides: ThreadFixtureOverrides = {}): Thread {
     ...overrides,
   });
 }
+
+describe("filterSidebarV2VisibleThreads", () => {
+  const connected = makeThread({
+    id: ThreadId.make("thread-connected"),
+    environmentId: EnvironmentId.make("environment-connected"),
+  });
+  const disconnected = makeThread({
+    id: ThreadId.make("thread-disconnected"),
+    environmentId: EnvironmentId.make("environment-disconnected"),
+  });
+
+  it("hides disconnected threads and restores them when their environment reconnects", () => {
+    const threads = [connected, disconnected];
+    expect(
+      filterSidebarV2VisibleThreads(threads, null, ["environment-connected"]).map((thread) =>
+        String(thread.id),
+      ),
+    ).toEqual(["thread-connected"]);
+    expect(
+      filterSidebarV2VisibleThreads(threads, null, [
+        "environment-connected",
+        "environment-disconnected",
+      ]).map((thread) => String(thread.id)),
+    ).toEqual(["thread-connected", "thread-disconnected"]);
+  });
+});
 
 describe("getFallbackThreadIdAfterDelete", () => {
   it("skips other threads being deleted in the same action", () => {
