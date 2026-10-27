@@ -48,7 +48,7 @@ jobs:
             exit 1
           fi
 
-          # The NAS update target is ported below; disconnected-environment filtering stays excluded.
+          # The environment filter and NAS update target are ported below because their old commits conflict upstream.
           patch_commits="$(git log --reverse --format='%H' --grep='^patch:' "$PATCH_BASE_SHA..$WORKFLOW_SHA" \
             | awk '$0 != "6611d52bdf24eb30ae3708f8fc7718334d1892d5" && $0 != "31a1311b2017ccb5e1b9a86735699b766069fa48"')"
           if [[ -z "$patch_commits" ]]; then
@@ -142,6 +142,7 @@ jobs:
 
           Includes these fork fixes:
           - Order active threads by the latest message or run activity.
+          - Hide threads from disconnected environments and restore them on reconnect.
           - Target NAS server updates at the source upstream nightly.
           - Render Codex memory citations as readable references.
 
@@ -197,7 +198,7 @@ jobs:
           toolchain: stable
           targets: x86_64-pc-windows-msvc
 
-      - name: Configure public T3 Connect build settings
+      - name: Load official upstream T3 Connect settings
         shell: bash
         run: cp .env.example .env
 
@@ -265,7 +266,7 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.rust_target }}
 
-      - name: Configure public T3 Connect build settings
+      - name: Load official upstream T3 Connect settings
         shell: bash
         run: cp .env.example .env
 

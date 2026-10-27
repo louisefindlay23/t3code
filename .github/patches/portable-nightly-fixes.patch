@@ -150,3 +150,268 @@ index 501bac5dba..7eaf10ab91 100644
        "import.meta.env.APP_VERSION": JSON.stringify(configuredAppVersion),
      },
      resolve: {
+diff --git a/apps/mobile/src/features/threads/threadListV2.test.ts b/apps/mobile/src/features/threads/threadListV2.test.ts
+index 18e8a2cf3b..46fa631872 100644
+--- a/apps/mobile/src/features/threads/threadListV2.test.ts
++++ b/apps/mobile/src/features/threads/threadListV2.test.ts
+@@ -33,6 +33,7 @@ import { threadJumpTarget } from "../keyboard/threadKeyboardShortcuts";
+ import {
+   buildThreadListV2Items,
+   buildThreadListV2ListItems,
++  filterThreadListV2ConnectedThreads,
+   getThreadListV2OrderedSection,
+   resolveThreadListV2SnoozeMenuSelection,
+   resolveThreadListV2Status,
+@@ -57,6 +58,28 @@ function makeThread(
+ 
+ const NOW = "2026-06-02T00:00:00.000Z";
+ 
++describe("filterThreadListV2ConnectedThreads", () => {
++  const connected = makeThread({ id: ThreadId.make("connected"), title: "Connected" });
++  const disconnected = makeThread({
++    id: ThreadId.make("disconnected"),
++    title: "Disconnected",
++    environmentId: EnvironmentId.make("environment-disconnected"),
++  });
++
++  it("hides disconnected threads and restores them when their environment reconnects", () => {
++    const threads = [connected, disconnected];
++    expect(filterThreadListV2ConnectedThreads(threads, new Set([environmentId]))).toEqual([
++      connected,
++    ]);
++    expect(
++      filterThreadListV2ConnectedThreads(
++        threads,
++        new Set([environmentId, disconnected.environmentId]),
++      ),
++    ).toEqual(threads);
++  });
++});
++
+ describe("resolveThreadListV2SnoozeMenuSelection", () => {
+   it("recomputes presets that remain available instead of using old timestamps", () => {
+     const displayedPresets = resolveSnoozePresets(new Date(2026, 4, 8, 10));
+diff --git a/apps/mobile/src/features/threads/threadListV2.ts b/apps/mobile/src/features/threads/threadListV2.ts
+index 9adc18e717..51899d3071 100644
+--- a/apps/mobile/src/features/threads/threadListV2.ts
++++ b/apps/mobile/src/features/threads/threadListV2.ts
+@@ -157,6 +157,13 @@ export function nextSnoozeWakeAfter(
+ export const THREAD_LIST_V2_SETTLED_INITIAL_COUNT = 10;
+ export const THREAD_LIST_V2_SETTLED_PAGE_COUNT = 25;
+ 
++export function filterThreadListV2ConnectedThreads(
++  threads: ReadonlyArray<EnvironmentThreadShell>,
++  connectedEnvironmentIds: ReadonlySet<EnvironmentId>,
++): EnvironmentThreadShell[] {
++  return threads.filter((thread) => connectedEnvironmentIds.has(thread.environmentId));
++}
++
+ export function threadHasUnseenCompletion(
+   thread: Pick<EnvironmentThreadShell, "latestRun" | "lastVisitedAt">,
+ ): boolean {
+diff --git a/apps/mobile/src/features/threads/useThreadListV2.ts b/apps/mobile/src/features/threads/useThreadListV2.ts
+index 2a6f3504e2..0975435e70 100644
+--- a/apps/mobile/src/features/threads/useThreadListV2.ts
++++ b/apps/mobile/src/features/threads/useThreadListV2.ts
+@@ -5,9 +5,11 @@ import { useMemo, useSyncExternalStore } from "react";
+ import { scopedProjectKey } from "../../lib/scopedEntities";
+ import { useOlderSettledShelf, useOlderSettledShelfGrowth } from "../../state/olderSettledShelf";
+ import type { PendingNewTask } from "../../state/use-pending-new-tasks";
++import { useWorkspaceState } from "../../state/workspace";
+ import {
+   buildThreadListV2Items,
+   buildThreadListV2ListItems,
++  filterThreadListV2ConnectedThreads,
+   getThreadListV2OrderedSection,
+   threadListInboxReturns,
+ } from "./threadListV2";
+@@ -56,6 +58,20 @@ export function useThreadListV2(input: {
+   readonly selectedThreadKey: string | null;
+ }) {
+   const { threads, workingShelfEnabled } = input;
++  const { environments } = useWorkspaceState();
++  const connectedEnvironmentIds = useMemo(
++    () =>
++      new Set(
++        environments
++          .filter((environment) => environment.connectionState === "connected")
++          .map((environment) => environment.environmentId),
++      ),
++    [environments],
++  );
++  const visibleThreads = useMemo(
++    () => filterThreadListV2ConnectedThreads(threads, connectedEnvironmentIds),
++    [threads, connectedEnvironmentIds],
++  );
+   // A thread can stop working when the threads change, or when its exit grace expires.
+   const inboxVersion = useSyncExternalStore(
+     threadListInboxReturns.subscribe,
+@@ -71,13 +87,13 @@ export function useThreadListV2(input: {
+   // list construction quadratic, and this list rebuilds on every minute tick.
+   const sectionAvailability = (section: "pinned" | "active") =>
+     computeThreadMoveAvailability({
+-      allThreads: threads,
++      allThreads: visibleThreads,
+       section,
+       pendingOrder: input.pendingOrder,
+       reorderableEnvironmentIds:
+         section === "pinned" ? input.pinReorderEnvironmentIds : input.activeReorderEnvironmentIds,
+       ordered: getThreadListV2OrderedSection({
+-        threads,
++        threads: visibleThreads,
+         section,
+         pendingOrder: input.pendingOrder,
+         now: input.now,
+@@ -100,7 +116,7 @@ export function useThreadListV2(input: {
+   });
+   const layout = buildThreadListV2Items({
+     pendingOrder: input.pendingOrder,
+-    threads: threads.filter((thread) => thread.archivedAt === null),
++    threads: visibleThreads.filter((thread) => thread.archivedAt === null),
+     environmentId: input.environmentId,
+     projectRefs: input.projectRefs,
+     searchQuery: input.searchQuery,
+@@ -119,7 +135,7 @@ export function useThreadListV2(input: {
+     selectedThreadKey: input.selectedThreadKey,
+     isListedSettled: olderSettledShelf.isListed,
+     unloadedSettledCount: olderSettledShelf.unloadedCount(
+-      threads.filter(
++      visibleThreads.filter(
+         (thread) =>
+           thread.archivedAt === null &&
+           scopes.some(
+diff --git a/apps/web/src/components/Sidebar.logic.test.ts b/apps/web/src/components/Sidebar.logic.test.ts
+index a66540ff4f..c02a8d50ba 100644
+--- a/apps/web/src/components/Sidebar.logic.test.ts
++++ b/apps/web/src/components/Sidebar.logic.test.ts
+@@ -7,6 +7,7 @@ import { AsyncResult } from "effect/reactivity";
+ import {
+   archiveSelectedThreadEntries,
+   deleteSelectedThreadEntries,
++  filterSidebarV2VisibleThreads,
+   getFallbackThreadIdAfterDelete,
+   hasUnseenCompletion,
+   resolveSidebarRowThreadId,
+@@ -663,6 +664,32 @@ function makeThread(overrides: ThreadFixtureOverrides = {}): Thread {
+   });
+ }
+ 
++describe("filterSidebarV2VisibleThreads", () => {
++  const connected = makeThread({
++    id: ThreadId.make("thread-connected"),
++    environmentId: EnvironmentId.make("environment-connected"),
++  });
++  const disconnected = makeThread({
++    id: ThreadId.make("thread-disconnected"),
++    environmentId: EnvironmentId.make("environment-disconnected"),
++  });
++
++  it("hides disconnected threads and restores them when their environment reconnects", () => {
++    const threads = [connected, disconnected];
++    expect(
++      filterSidebarV2VisibleThreads(threads, null, ["environment-connected"]).map((thread) =>
++        String(thread.id),
++      ),
++    ).toEqual(["thread-connected"]);
++    expect(
++      filterSidebarV2VisibleThreads(threads, null, [
++        "environment-connected",
++        "environment-disconnected",
++      ]).map((thread) => String(thread.id)),
++    ).toEqual(["thread-connected", "thread-disconnected"]);
++  });
++});
++
+ describe("getFallbackThreadIdAfterDelete", () => {
+   it("skips other threads being deleted in the same action", () => {
+     const fallbackThreadId = getFallbackThreadIdAfterDelete({
+diff --git a/apps/web/src/components/Sidebar.logic.ts b/apps/web/src/components/Sidebar.logic.ts
+index 90264caa28..e5c4886ee8 100644
+--- a/apps/web/src/components/Sidebar.logic.ts
++++ b/apps/web/src/components/Sidebar.logic.ts
+@@ -585,11 +585,17 @@ export function filterSidebarV2VisibleThreads<
+     environmentId: string;
+     projectId: string;
+   },
+->(threads: readonly T[], scopedProjectKeys: ReadonlySet<string> | null): T[] {
++>(
++  threads: readonly T[],
++  scopedProjectKeys: ReadonlySet<string> | null,
++  connectedEnvironmentIds?: ReadonlyArray<string>,
++): T[] {
+   return threads.filter(
+     (thread) =>
+       thread.archivedAt === null &&
+       !isSidebarSubagentThread(thread) &&
++      (connectedEnvironmentIds === undefined ||
++        connectedEnvironmentIds.includes(thread.environmentId)) &&
+       (scopedProjectKeys === null ||
+         scopedProjectKeys.has(`${thread.environmentId}:${thread.projectId}`)),
+   );
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index 99f4287406..d4f58fbfdd 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -310,6 +310,7 @@ type SidebarOptimisticDrop = {
+ interface SidebarThreadPartitionInput {
+   readonly threads: readonly EnvironmentThreadShell[];
+   readonly scopedProjectKeys: ReadonlySet<string> | null;
++  readonly connectedEnvironmentIds: ReadonlyArray<EnvironmentId>;
+   readonly serverConfigs: ReadonlyMap<EnvironmentId, EnvironmentServerConfig>;
+   readonly optimisticDrop: SidebarOptimisticDrop | null;
+   readonly workingShelfEnabled: boolean;
+@@ -368,6 +369,7 @@ function routeThreadOnly(
+ function useSidebarThreads(input: {
+   readonly projectScopeKey: string | null;
+   readonly scopedProjectKeys: ReadonlySet<string> | null;
++  readonly connectedEnvironmentIds: ReadonlyArray<EnvironmentId>;
+   readonly serverConfigs: ReadonlyMap<EnvironmentId, EnvironmentServerConfig>;
+   readonly optimisticDrop: SidebarOptimisticDrop | null;
+   readonly threads: readonly EnvironmentThreadShell[];
+@@ -376,6 +378,7 @@ function useSidebarThreads(input: {
+   const {
+     projectScopeKey,
+     scopedProjectKeys,
++    connectedEnvironmentIds,
+     serverConfigs,
+     optimisticDrop,
+     threads,
+@@ -417,6 +420,7 @@ function useSidebarThreads(input: {
+   const partition = partitionSidebarThreads({
+     threads,
+     scopedProjectKeys,
++    connectedEnvironmentIds,
+     serverConfigs,
+     optimisticDrop,
+     workingShelfEnabled,
+@@ -520,9 +524,20 @@ function useSidebarThreads(input: {
+ }
+ 
+ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
+-  const { threads, scopedProjectKeys, serverConfigs, optimisticDrop, workingShelfEnabled } = input;
++  const {
++    threads,
++    scopedProjectKeys,
++    connectedEnvironmentIds,
++    serverConfigs,
++    optimisticDrop,
++    workingShelfEnabled,
++  } = input;
+   const preciseNow = new Date().toISOString();
+-  const visible = filterSidebarV2VisibleThreads(threads, scopedProjectKeys);
++  const visible = filterSidebarV2VisibleThreads(
++    threads,
++    scopedProjectKeys,
++    connectedEnvironmentIds,
++  );
+   const inboxObservation = inboxReturns.observe(workingShelfEnabled ? threads : null);
+   const pinned: EnvironmentThreadShell[] = [];
+   const active: EnvironmentThreadShell[] = [];
+@@ -1134,6 +1149,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+   } = useSidebarThreads({
+     projectScopeKey,
+     scopedProjectKeys,
++    connectedEnvironmentIds: searchEnvironmentIds,
+     serverConfigs,
+     optimisticDrop,
+     threads,
