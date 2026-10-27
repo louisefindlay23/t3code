@@ -145,6 +145,7 @@ jobs:
           - Hide threads from disconnected environments and restore them on reconnect.
           - Target NAS server updates at the source upstream nightly.
           - Render Codex memory citations as readable references.
+          - Keep worktrees when Git reports a broken worktree pointer.
 
           The macOS installer is signed and notarized. The Windows installer is unsigned.
           EOF
