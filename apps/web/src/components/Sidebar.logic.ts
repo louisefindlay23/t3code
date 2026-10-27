@@ -585,11 +585,17 @@ export function filterSidebarV2VisibleThreads<
     environmentId: string;
     projectId: string;
   },
->(threads: readonly T[], scopedProjectKeys: ReadonlySet<string> | null): T[] {
+>(
+  threads: readonly T[],
+  scopedProjectKeys: ReadonlySet<string> | null,
+  connectedEnvironmentIds?: ReadonlyArray<string>,
+): T[] {
   return threads.filter(
     (thread) =>
       thread.archivedAt === null &&
       !isSidebarSubagentThread(thread) &&
+      (connectedEnvironmentIds === undefined ||
+        connectedEnvironmentIds.includes(thread.environmentId)) &&
       (scopedProjectKeys === null ||
         scopedProjectKeys.has(`${thread.environmentId}:${thread.projectId}`)),
   );

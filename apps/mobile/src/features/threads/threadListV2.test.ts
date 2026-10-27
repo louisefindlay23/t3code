@@ -33,6 +33,7 @@ import { threadJumpTarget } from "../keyboard/threadKeyboardShortcuts";
 import {
   buildThreadListV2Items,
   buildThreadListV2ListItems,
+  filterThreadListV2ConnectedThreads,
   getThreadListV2OrderedSection,
   resolveThreadListV2SnoozeMenuSelection,
   resolveThreadListV2Status,
@@ -56,6 +57,28 @@ function makeThread(
 }
 
 const NOW = "2026-06-02T00:00:00.000Z";
+
+describe("filterThreadListV2ConnectedThreads", () => {
+  const connected = makeThread({ id: ThreadId.make("connected"), title: "Connected" });
+  const disconnected = makeThread({
+    id: ThreadId.make("disconnected"),
+    title: "Disconnected",
+    environmentId: EnvironmentId.make("environment-disconnected"),
+  });
+
+  it("hides disconnected threads and restores them when their environment reconnects", () => {
+    const threads = [connected, disconnected];
+    expect(filterThreadListV2ConnectedThreads(threads, new Set([environmentId]))).toEqual([
+      connected,
+    ]);
+    expect(
+      filterThreadListV2ConnectedThreads(
+        threads,
+        new Set([environmentId, disconnected.environmentId]),
+      ),
+    ).toEqual(threads);
+  });
+});
 
 describe("resolveThreadListV2SnoozeMenuSelection", () => {
   it("recomputes presets that remain available instead of using old timestamps", () => {
