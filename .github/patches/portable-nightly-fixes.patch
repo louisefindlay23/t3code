@@ -294,7 +294,7 @@ index fee5b9857a..780354b4a1 100644
          />
        ) : null}
 diff --git a/apps/web/src/components/sidebar/useUpdateEverything.ts b/apps/web/src/components/sidebar/useUpdateEverything.ts
-index af38bbf5d4..779dc4821f 100644
+index d8ab3a5bce..ab423fda61 100644
 --- a/apps/web/src/components/sidebar/useUpdateEverything.ts
 +++ b/apps/web/src/components/sidebar/useUpdateEverything.ts
 @@ -4,6 +4,7 @@ import { PROVIDER_DISPLAY_NAMES } from "@t3tools/contracts";
@@ -305,10 +305,10 @@ index af38bbf5d4..779dc4821f 100644
  import { useEnvironments } from "~/state/environments";
  import { useNpmReleasePublished } from "~/state/npmRelease";
  import { environmentIdsKey } from "~/state/environmentAtomList";
-@@ -37,7 +38,7 @@ const UPDATE_RESTART_DELAY_MS = 5_000;
- export type ReportLocalUpdateError = (title: string, description: string) => void;
- 
- export function useUpdateEverything(localUpdateVersion: string | null) {
+@@ -54,7 +55,7 @@ export function useUpdateEverything(
+   localUpdateVersion: string | null,
+   channelSwitch?: ChannelSwitchRelease,
+ ) {
 -  const targetVersion = localUpdateVersion ?? APP_VERSION;
 +  const targetVersion = getServerUpdateTargetVersion(localUpdateVersion ?? APP_VERSION);
    const { environments } = useEnvironments();
