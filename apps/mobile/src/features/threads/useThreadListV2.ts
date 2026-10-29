@@ -5,9 +5,11 @@ import { useMemo, useSyncExternalStore } from "react";
 import { scopedProjectKey } from "../../lib/scopedEntities";
 import { useOlderSettledShelf, useOlderSettledShelfGrowth } from "../../state/olderSettledShelf";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
+import { useWorkspaceState } from "../../state/workspace";
 import {
   buildThreadListV2Items,
   buildThreadListV2ListItems,
+  filterThreadListV2ConnectedThreads,
   getThreadListV2OrderedSection,
   threadListInboxReturns,
 } from "./threadListV2";
@@ -56,6 +58,20 @@ export function useThreadListV2(input: {
   readonly selectedThreadKey: string | null;
 }) {
   const { threads, workingShelfEnabled } = input;
+  const { environments } = useWorkspaceState();
+  const connectedEnvironmentIds = useMemo(
+    () =>
+      new Set(
+        environments
+          .filter((environment) => environment.connectionState === "connected")
+          .map((environment) => environment.environmentId),
+      ),
+    [environments],
+  );
+  const visibleThreads = useMemo(
+    () => filterThreadListV2ConnectedThreads(threads, connectedEnvironmentIds),
+    [threads, connectedEnvironmentIds],
+  );
   // A thread can stop working when the threads change, or when its exit grace expires.
   const inboxVersion = useSyncExternalStore(
     threadListInboxReturns.subscribe,
@@ -71,13 +87,13 @@ export function useThreadListV2(input: {
   // list construction quadratic, and this list rebuilds on every minute tick.
   const sectionAvailability = (section: "pinned" | "active") =>
     computeThreadMoveAvailability({
-      allThreads: threads,
+      allThreads: visibleThreads,
       section,
       pendingOrder: input.pendingOrder,
       reorderableEnvironmentIds:
         section === "pinned" ? input.pinReorderEnvironmentIds : input.activeReorderEnvironmentIds,
       ordered: getThreadListV2OrderedSection({
-        threads,
+        threads: visibleThreads,
         section,
         pendingOrder: input.pendingOrder,
         now: input.now,
@@ -100,7 +116,7 @@ export function useThreadListV2(input: {
   });
   const layout = buildThreadListV2Items({
     pendingOrder: input.pendingOrder,
-    threads: threads.filter((thread) => thread.archivedAt === null),
+    threads: visibleThreads.filter((thread) => thread.archivedAt === null),
     environmentId: input.environmentId,
     projectRefs: input.projectRefs,
     searchQuery: input.searchQuery,
@@ -119,7 +135,7 @@ export function useThreadListV2(input: {
     selectedThreadKey: input.selectedThreadKey,
     isListedSettled: olderSettledShelf.isListed,
     unloadedSettledCount: olderSettledShelf.unloadedCount(
-      threads.filter(
+      visibleThreads.filter(
         (thread) =>
           thread.archivedAt === null &&
           scopes.some(
