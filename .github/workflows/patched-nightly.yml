@@ -116,7 +116,12 @@ jobs:
           git checkout --detach "$source_sha"
           while IFS= read -r patch_commit; do
             [[ -z "$patch_commit" ]] && continue
-            git cherry-pick "$patch_commit"
+            if [[ "$patch_commit" == "d7afd796203feea11e62d22c2925ca81c73fb4dd" ]]; then
+              # Upstream rewrote this test file; keep its version while replaying the implementation.
+              git cherry-pick -X ours "$patch_commit"
+            else
+              git cherry-pick "$patch_commit"
+            fi
           done <<<"$patch_commits"
           git apply --check "$compatibility_patch"
           git apply "$compatibility_patch"
@@ -133,6 +138,7 @@ jobs:
             git tag "$release_tag"
             git push origin "refs/tags/$release_tag"
           fi
+          upstream_notes="$(gh api "repos/pingdotgg/t3code/releases/tags/$source_tag" --jq '.body // empty')"
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           Patched T3 Code nightly.
 
@@ -140,16 +146,27 @@ jobs:
           Source commit: $source_sha
           Patch set: $patch_set
 
+          ## What's changed
+
+          ## Upstream improvements
+
+          Official T3 Code release notes for [$source_tag](https://github.com/pingdotgg/t3code/releases/tag/$source_tag):
+
+          $upstream_notes
+
+          ## Fork changes
+
           Includes these fork fixes:
           - Order active threads by the latest message or run activity.
           - Hide threads from disconnected environments and restore them on reconnect.
-          - Target NAS server updates at the source upstream nightly.
           - Render Codex memory citations as readable references.
-          - Keep worktrees when Git reports a broken worktree pointer.
 
           The macOS installer is signed and notarized. The Windows installer is unsigned.
           EOF
-          if ! gh release view "$release_tag" --repo "$FORK_REPOSITORY" >/dev/null 2>&1; then
+          if gh release view "$release_tag" --repo "$FORK_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$release_tag" --repo "$FORK_REPOSITORY" \
+              --notes-file "$RUNNER_TEMP/release-notes.md"
+          else
             gh release create "$release_tag" --repo "$FORK_REPOSITORY" \
               --title "T3 Code Nightly $version (Patched)" \
               --notes-file "$RUNNER_TEMP/release-notes.md" \
