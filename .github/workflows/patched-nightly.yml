@@ -210,23 +210,43 @@ jobs:
       - name: Install desktop dependencies
         run: vp install --filter=@t3tools/desktop... --filter=t3... --filter=@t3tools/scripts...
 
+      - name: Restore Windows resource monitor cache
+        id: resource_monitor_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: native/resource-monitor/target/x86_64-pc-windows-msvc/release/t3-resource-monitor.exe
+          key: resource-monitor-x86_64-pc-windows-msvc-${{ hashFiles('native/resource-monitor/Cargo.lock', 'native/resource-monitor/Cargo.toml', 'native/resource-monitor/src/**') }}
+
       - name: Set up Rust
+        if: steps.resource_monitor_cache.outputs.cache-hit != 'true'
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: stable
           targets: x86_64-pc-windows-msvc
 
       - name: Install cargo-xwin
+        if: steps.resource_monitor_cache.outputs.cache-hit != 'true'
         uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283
         with:
           tool: cargo-xwin@0.23.1
 
       - name: Build Windows resource monitor
+        if: steps.resource_monitor_cache.outputs.cache-hit != 'true'
         run: cargo xwin build --locked --release --manifest-path native/resource-monitor/Cargo.toml --target x86_64-pc-windows-msvc
+
+      - name: Save Windows resource monitor cache
+        if: steps.resource_monitor_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: native/resource-monitor/target/x86_64-pc-windows-msvc/release/t3-resource-monitor.exe
+          key: ${{ steps.resource_monitor_cache.outputs.cache-primary-key }}
 
       - name: Load official upstream T3 Connect settings
         shell: bash
         run: cp .env.example .env
+
+      - name: Install Linux bundle build dependencies
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libsecret-1-dev
 
       - name: Build patched Windows installer
         shell: bash
