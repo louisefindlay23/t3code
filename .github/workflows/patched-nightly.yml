@@ -177,7 +177,7 @@ jobs:
     name: Build Windows installer
     needs: resolve
     if: needs.resolve.outputs.should_build == 'true'
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
       contents: write
@@ -216,6 +216,14 @@ jobs:
           toolchain: stable
           targets: x86_64-pc-windows-msvc
 
+      - name: Install cargo-xwin
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283
+        with:
+          tool: cargo-xwin@0.23.1
+
+      - name: Build Windows resource monitor
+        run: cargo xwin build --locked --release --manifest-path native/resource-monitor/Cargo.toml --target x86_64-pc-windows-msvc
+
       - name: Load official upstream T3 Connect settings
         shell: bash
         run: cp .env.example .env
@@ -225,16 +233,75 @@ jobs:
         env:
           T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
           T3CODE_SERVER_UPDATE_VERSION: ${{ needs.resolve.outputs.source_tag }}
+          T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR: "true"
         run: |
           set -euo pipefail
           export T3CODE_SERVER_UPDATE_VERSION="${T3CODE_SERVER_UPDATE_VERSION#v}"
           node scripts/build-desktop-artifact.ts \
             --platform win --target nsis --arch x64 \
             --build-version "$BUILD_VERSION" \
+            --keep-stage \
             --verbose \
             --output-dir release-patched
           gh release upload "$RELEASE_TAG" release-patched/* \
             --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Stage Windows runtime verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p verify
+          unpacked="$(find "${TMPDIR:-/tmp}" -type d -path '*/t3code-desktop-win-stage-*/app/dist/win-unpacked' -print -quit)"
+          if [[ -z "$unpacked" ]]; then
+            echo "The staged Windows app directory was not found." >&2
+            exit 1
+          fi
+          tar -C "$(dirname "$unpacked")" -cf verify/unpacked.tar "$(basename "$unpacked")"
+          esbuild=scripts/node_modules/.bin/esbuild
+          banner="import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);"
+          "$esbuild" scripts/verify-windows-desktop-artifact.ts --bundle --platform=node --format=esm \
+            --target=node24 --define:import.meta.main=false --banner:js="$banner" \
+            --outfile=verify/verify-windows-desktop-artifact.mjs
+
+      - name: Upload Windows runtime verification inputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: patched-nightly-windows-verify
+          path: verify/*
+          if-no-files-found: error
+          compression-level: 1
+
+  windows_verify:
+    name: Verify Windows installer
+    needs: [resolve, windows]
+    if: needs.resolve.outputs.should_build == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+    env:
+      BUILD_VERSION: ${{ needs.resolve.outputs.version }}
+    steps:
+      - name: Download Windows verification inputs
+        uses: actions/download-artifact@v8
+        with:
+          name: patched-nightly-windows-verify
+          path: verify
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify Windows packaged runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C verify -xf verify/unpacked.tar
+          node verify/verify-windows-desktop-artifact.mjs \
+            --app-dir "$(cygpath -w "$PWD/verify/win-unpacked")" \
+            --arch x64 --build-version "$BUILD_VERSION" --verbose
 
   macos:
     name: Build macOS installers
@@ -324,8 +391,8 @@ jobs:
 
   publish:
     name: Publish completed nightly
-    needs: [resolve, windows, macos]
-    if: ${{ always() && needs.resolve.outputs.should_build == 'true' && needs.windows.result == 'success' && needs.macos.result == 'success' }}
+    needs: [resolve, windows, windows_verify, macos]
+    if: ${{ always() && needs.resolve.outputs.should_build == 'true' && needs.windows.result == 'success' && needs.windows_verify.result == 'success' && needs.macos.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
