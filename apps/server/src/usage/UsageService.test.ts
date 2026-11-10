@@ -22,6 +22,7 @@ import {
 } from "@t3tools/contracts";
 import * as Duration from "effect/Duration";
 import * as Clock from "effect/Clock";
+import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -2220,18 +2221,20 @@ describe("UsageService", () => {
   it.live("reports saved usage of a removed directory only for windows it reaches", () =>
     Effect.gen(function* () {
       const { transcript, settings, home } = yield* setup;
-      const transcriptTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const timestamp = transcriptTime.toISOString();
-      const day = UsageDay.make(timestamp.slice(0, 10));
+      const transcriptTime = DateTime.makeUnsafe(
+        (yield* Clock.currentTimeMillis) - 24 * 60 * 60 * 1000,
+      );
+      const timestamp = DateTime.formatIso(transcriptTime);
+      const day = UsageDay.make(DateTime.formatIsoDateUtc(transcriptTime));
       // The scanner's 36-hour mtime slack requires a three-day gap to exclude the cached file.
       const laterDay = UsageDay.make(
-        new Date(Date.parse(`${day}T00:00:00Z`) + 3 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10),
+        DateTime.formatIsoDateUtc(
+          DateTime.makeUnsafe(DateTime.toEpochMillis(transcriptTime) + 3 * 24 * 60 * 60 * 1000),
+        ),
       );
       yield* Effect.promise(async () => {
         await NodeFSP.writeFile(transcript, claudeLine(1, 5, "claude-fable-5", timestamp));
-        const lastWrite = transcriptTime.getTime() / 1000;
+        const lastWrite = DateTime.toEpochMillis(transcriptTime) / 1000;
         await NodeFSP.utimes(transcript, lastWrite, lastWrite);
       });
       const service = yield* UsageService.make.pipe(
