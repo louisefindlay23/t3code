@@ -231,6 +231,7 @@ jobs:
           node scripts/build-desktop-artifact.ts \
             --platform win --target nsis --arch x64 \
             --build-version "$BUILD_VERSION" \
+            --verbose \
             --output-dir release-patched
           gh release upload "$RELEASE_TAG" release-patched/* \
             --clobber --repo "$GITHUB_REPOSITORY"
