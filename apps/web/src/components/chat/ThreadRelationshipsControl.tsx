@@ -19,6 +19,7 @@ import {
   isParentThreadRelationship,
   threadRelationshipRowStatus,
   orderWebThreadLineageRows,
+  omitSettledOrDeletedSubagentRelationships,
   resolveMergeBackTargetThreadId,
   type ThreadRelationshipEdge,
   type ThreadRelationshipWalkRow,
@@ -289,7 +290,11 @@ export function ThreadRelationshipsPanel(props: {
   const mergeTargetThreadId = resolveMergeBackTargetThreadId(projection);
   const relationshipRows = orderWebThreadLineageRows({
     graph,
-    rows: immediateThreadRelationships(graph, props.threadId),
+    rows: omitSettledOrDeletedSubagentRelationships(
+      graph,
+      immediateThreadRelationships(graph, props.threadId),
+      props.threadId,
+    ),
     currentThreadId: props.threadId,
     mergeTargetThreadId,
   }).map((row) => {
@@ -437,10 +442,12 @@ export function ThreadRelationshipsPanel(props: {
               const isSubagent = edge.kind === "subagent";
               const isMergeTarget = threadId === mergeTargetThreadId;
               const isParent = isParentThreadRelationship(edge, props.threadId);
-              const rowStatus =
-                (isParent && threadId === parentRef?.threadId
-                  ? (node?.thread?.activityRunStatus ?? parentNativeStatus)
-                  : undefined) ?? threadRelationshipRowStatus(graph, { threadId, edge });
+              // A missing shell can mean an offline environment or an incomplete sync.
+              const rowStatus = node?.missing
+                ? "unavailable"
+                : ((isParent && threadId === parentRef?.threadId
+                    ? (node?.thread?.activityRunStatus ?? parentNativeStatus)
+                    : undefined) ?? threadRelationshipRowStatus(graph, { threadId, edge }));
               const RelationshipIcon = isParent
                 ? CornerLeftUpIcon
                 : isSubagent
@@ -448,7 +455,9 @@ export function ThreadRelationshipsPanel(props: {
                   : GitForkIcon;
               const relationship = relationshipLabel(edge, props.threadId);
               const projectedAgent =
-                isSubagent && !isParent ? subagentsByThreadId.get(threadId) : undefined;
+                isSubagent && !isParent && node?.missing !== true
+                  ? subagentsByThreadId.get(threadId)
+                  : undefined;
               const workflowGroup =
                 projectedAgent === undefined
                   ? undefined
