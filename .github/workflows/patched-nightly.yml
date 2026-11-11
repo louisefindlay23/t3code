@@ -256,6 +256,7 @@ jobs:
           T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR: "true"
         run: |
           set -euo pipefail
+          export TMPDIR="$RUNNER_TEMP"
           export T3CODE_SERVER_UPDATE_VERSION="${T3CODE_SERVER_UPDATE_VERSION#v}"
           node scripts/build-desktop-artifact.ts \
             --platform win --target nsis --arch x64 \
@@ -270,6 +271,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export TMPDIR="$RUNNER_TEMP"
           mkdir -p verify
           unpacked="$(find "${TMPDIR:-/tmp}" -type d -path '*/t3code-desktop-win-stage-*/app/dist/win-unpacked' -print -quit)"
           if [[ -z "$unpacked" ]]; then
