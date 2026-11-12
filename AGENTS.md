@@ -106,6 +106,7 @@ An empty database is a bad test. Seed your worktree's `.t3` with a copy of real 
 ## Patched nightly commits
 
 - `.github/workflows/patched-nightly.yml` cherry-picks only fork commits after its configured patch base whose subject starts exactly with `patch:`. Use `patch: short description` for a self-contained product change intended for the patched nightly; `patch(scope):` and ordinary `fix:` commits are not selected.
+- For pull requests that change product source, choose exactly one Patched nightly option in the PR template. CI requires `patch: description` in both the PR title and every commit subject when the change should ship in patched nightlies.
 - Keep each `patch:` commit independently cherry-pickable onto the latest upstream nightly. Include code, tests, and fixtures needed for that product change; keep fork-only CI, workflow, and documentation changes in their normal `ci:`, `docs:`, or other commits so they are not copied into the app release.
 - Do not broaden the workflow to include every `fix:` commit: unrelated CI or maintenance fixes can then be applied to upstream nightly sources. Check the exact patch commit list and confirm it applies cleanly when changing the patch base or release workflow.
 - Never ship a patch the user has explicitly reverted or excluded; filter that commit from the nightly selection and keep the release notes accurate.
