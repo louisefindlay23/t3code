@@ -1,0 +1,680 @@
+import { useAtomValue } from "@effect/atom-react";
+import * as Option from "effect/Option";
+import { AsyncResult, Atom } from "effect/reactivity";
+import {
+  DEFAULT_SERVER_SETTINGS,
+  type AgentId,
+  type AgentSummary,
+  type ModelSelection,
+  type ProviderInstanceId,
+  type WorktreeSubmodules,
+} from "@t3tools/contracts";
+import { createModelSelection } from "@t3tools/shared/model";
+import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
+import { useNavigate } from "@tanstack/react-router";
+
+import { mergeEnvironmentSettings } from "../../hooks/useSettings";
+import {
+  getCustomModelOptionsByInstance,
+  resolveEffectiveDefaultModelSelection,
+} from "../../modelSelection";
+import {
+  applyProviderInstanceSettings,
+  deriveProviderInstanceEntries,
+  resolveDefaultProviderModelSelection,
+  sortProviderInstanceEntries,
+} from "../../providerInstances";
+import { useEnvironmentProviders, useEnvironments } from "../../state/environments";
+import { useProjects } from "../../state/entities";
+import { agentRosterQuery } from "../../state/agents";
+import { formatEnvironmentQueryError, useEnvironmentQuery } from "../../state/query";
+import { appAtomRegistry } from "../../rpc/atomRegistry";
+import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
+import { resolveEnvModeLabel, WORKTREE_SUBMODULES_LABELS } from "../BranchToolbar.logic";
+import { ProviderModelPicker } from "../chat/ProviderModelPicker";
+import { AgentPicker } from "../chat/AgentPicker";
+import { runtimeModeConfig, runtimeModeOptions } from "../chat/runtimeModeConfig";
+import { PULL_REQUEST_MERGE_METHOD_LABELS } from "../pullRequest/pullRequestDetail.logic";
+import { TraitsPicker } from "../chat/TraitsPicker";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+import { toastManager } from "../ui/toast";
+import { Switch } from "../ui/switch";
+import { Button } from "../ui/button";
+import { RefreshIcon } from "../ui/refresh-icon";
+import type { ProjectSettingsCategory } from "./ProjectSettingsPanel";
+import { searchableSetting } from "./settingsSearch";
+import { useSettingsScope } from "./SettingsScopeContext";
+import {
+  SETTINGS_PICKER_TRIGGER_CLASSNAME,
+  SettingResetButton,
+  SettingsRow,
+  SettingsSection,
+} from "./settingsLayout";
+import {
+  useScopedSettings,
+  useScopedSettingsMixed,
+  useScopedSettingSource,
+  useUpdateScopedSettings,
+} from "./useScopedSettings";
+
+const WORKTREE_SUBMODULES_OPTIONS = ["recursive", "top-level", "none"] as const;
+function isWorktreeSubmodules(value: string | null): value is WorktreeSubmodules {
+  return value !== null && (WORKTREE_SUBMODULES_OPTIONS as readonly string[]).includes(value);
+}
+
+export function ProjectDefaultsSettings({ category }: { category: ProjectSettingsCategory }) {
+  const { scope, target, targets, connectedEnvironments } = useSettingsScope();
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  const navigate = useNavigate();
+  const { environments } = useEnvironments();
+  const projects = useProjects();
+  const providersByEnvironment = useEnvironmentProviders();
+  const representative = target
+    ? environments.find((environment) => environment.environmentId === target.environmentId)
+    : undefined;
+  const providers =
+    (representative?.serverConfig
+      ? providersByEnvironment.get(representative.environmentId)
+      : undefined) ?? EMPTY_SERVER_PROVIDERS;
+  const agentProjectId =
+    target?.projectId ??
+    projects.find((project) => project.environmentId === representative?.environmentId)?.id ??
+    null;
+  const agentRoster = useEnvironmentQuery(
+    representative && agentProjectId !== null
+      ? agentRosterQuery({
+          environmentId: representative.environmentId,
+          input: { projectId: agentProjectId },
+        })
+      : null,
+  );
+  const storedSelection = resolveDefaultProviderModelSelection(
+    providers,
+    settings.defaultModelSelection,
+  );
+  const selection = storedSelection
+    ? resolveEffectiveDefaultModelSelection(settings, providers, storedSelection)
+    : null;
+  const entries = sortProviderInstanceEntries(
+    applyProviderInstanceSettings(
+      deriveProviderInstanceEntries(providers),
+      settings,
+      target?.projectId ?? null,
+    ),
+  );
+  const modelOptions = getCustomModelOptionsByInstance(
+    settings,
+    providers,
+    selection?.instanceId,
+    selection?.model,
+  );
+  const activeEntry = entries.find((entry) => entry.instanceId === selection?.instanceId);
+  const mixedModel = useScopedSettingsMixed(["defaultModelSelection"]);
+  const mixedAgent = useScopedSettingsMixed(["defaultAgentId"]);
+  const agentSource = useScopedSettingSource(["defaultAgentId"]);
+  const mixedPermissions = useScopedSettingsMixed(["defaultRuntimeMode"]);
+  const PermissionIcon = runtimeModeConfig[settings.defaultRuntimeMode].icon;
+  const mixedWorkspace = useScopedSettingsMixed(["defaultThreadEnvMode"]);
+  const mixedSubmodules = useScopedSettingsMixed(["worktreeSubmodules"]);
+  const mixedAutoPull = useScopedSettingsMixed(["defaultAutoPull"]);
+  const mixedAgentCredits = useScopedSettingsMixed(["removeAgentCreditsOnMerge"]);
+  const mixedMergeMethod = useScopedSettingsMixed(["pullRequestMergeMethod"]);
+  const modelSource = useScopedSettingSource(["defaultModelSelection"]);
+  const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
+  const unavailable = connectedEnvironments.length === 0;
+  const effective = target
+    ? resolveProjectSettings(target.settings, null, null, null).settings
+    : null;
+
+  function modelDisabledReason(instanceId: ProviderInstanceId, model: string): string | null {
+    const sourceEntry = entries.find((entry) => entry.instanceId === instanceId);
+    for (const candidate of targets) {
+      const environment = environments.find(
+        (entry) => entry.environmentId === candidate.environmentId,
+      );
+      const providers = providersByEnvironment.get(candidate.environmentId);
+      if (!environment?.serverConfig || !providers) continue;
+      const entry = applyProviderInstanceSettings(
+        deriveProviderInstanceEntries(providers),
+        candidate.settings,
+        candidate.projectId,
+      ).find((option) => option.instanceId === instanceId);
+      const options = getCustomModelOptionsByInstance(
+        mergeEnvironmentSettings(candidate.settings, settings),
+        providers,
+      ).get(instanceId);
+      if (
+        !entry?.enabled ||
+        !entry.isAvailable ||
+        entry.driverKind !== sourceEntry?.driverKind ||
+        !options?.some((option) => option.slug === model && !option.isUnavailable)
+      ) {
+        return `This model is unavailable on ${environment?.label ?? "a selected environment"}. Select that environment to choose its model separately.`;
+      }
+    }
+    return null;
+  }
+
+  const setModel = (value: ModelSelection | null) => {
+    const reason = value ? modelDisabledReason(value.instanceId, value.model) : null;
+    if (reason) {
+      toastManager.add({ type: "error", title: "Default model not saved", description: reason });
+      return;
+    }
+    updateSettings({ defaultModelSelection: value });
+  };
+
+  interface TargetRosterState {
+    readonly candidate: (typeof targets)[number];
+    readonly queryAtom: ReturnType<typeof agentRosterQuery> | null;
+    readonly status: "pending" | "success" | "failure";
+    readonly error: string | null;
+    readonly isPending: boolean;
+    readonly agents: ReadonlyArray<AgentSummary> | null;
+  }
+
+  const targetRostersAtom = Atom.make((get): ReadonlyArray<TargetRosterState> =>
+    targets.map((candidate) => {
+      const candidateProjectId =
+        candidate.projectId ??
+        projects.find((project) => project.environmentId === candidate.environmentId)?.id ??
+        null;
+      if (!candidateProjectId) {
+        return {
+          candidate,
+          queryAtom: null,
+          status: "success",
+          error: null,
+          isPending: false,
+          agents: [],
+        };
+      }
+      const queryAtom = agentRosterQuery({
+        environmentId: candidate.environmentId,
+        input: { projectId: candidateProjectId },
+      });
+      const result = get(queryAtom);
+      const isPending = result.waiting || result._tag === "Initial";
+      const error = result._tag === "Failure" ? formatEnvironmentQueryError(result.cause) : null;
+      const agents = Option.getOrNull(AsyncResult.value(result));
+      return {
+        candidate,
+        queryAtom,
+        status: isPending ? "pending" : result._tag === "Failure" ? "failure" : "success",
+        error,
+        isPending,
+        agents,
+      };
+    }),
+  );
+  const targetRosters = useAtomValue(targetRostersAtom);
+
+  function agentDisabledReason(agentId: AgentId): string | null {
+    for (const targetRoster of targetRosters) {
+      if (
+        targetRoster.agents !== null &&
+        !targetRoster.agents.some((agent) => agent.id === agentId)
+      ) {
+        return `This agent is unavailable on ${targetRoster.candidate.label ?? "a selected target"}. Select that target to choose its agent separately.`;
+      }
+    }
+    return null;
+  }
+
+  const setAgent = (value: AgentId | null) => {
+    if (value) {
+      const pendingTarget = targetRosters.find(
+        (candidate) => candidate.isPending && candidate.agents === null,
+      );
+      if (pendingTarget) {
+        toastManager.add({
+          type: "error",
+          title: "Default agent not saved",
+          description: `Loading custom agents for ${pendingTarget.candidate.label ?? "a selected target"}. Please wait before saving.`,
+        });
+        return;
+      }
+      const failedTarget = targetRosters.find(
+        (candidate) => candidate.error !== null && candidate.agents === null,
+      );
+      if (failedTarget) {
+        toastManager.add({
+          type: "error",
+          title: "Default agent not saved",
+          description: `Failed to load custom agents for ${failedTarget.candidate.label ?? "a selected target"}: ${failedTarget.error}`,
+        });
+        return;
+      }
+      const reason = agentDisabledReason(value);
+      if (reason) {
+        toastManager.add({ type: "error", title: "Default agent not saved", description: reason });
+        return;
+      }
+    }
+    updateSettings({ defaultAgentId: value });
+  };
+
+  const isAgentRosterPending =
+    !unavailable &&
+    (agentRoster.isPending || targetRosters.some((candidate) => candidate.isPending));
+  const agentRosterError = !unavailable
+    ? (agentRoster.error ??
+      targetRosters.find((candidate) => candidate.error !== null)?.error ??
+      null)
+    : null;
+  const refreshAgentRosters = () => {
+    agentRoster.refresh();
+    for (const candidate of targetRosters) {
+      if (candidate.queryAtom) appAtomRegistry.refresh(candidate.queryAtom);
+    }
+  };
+  const agentStatus =
+    unavailable || mixedAgent || agentSource === "project"
+      ? undefined
+      : agentRosterError
+        ? `Failed to load custom agents: ${agentRosterError}`
+        : isAgentRosterPending
+          ? "Loading custom agents…"
+          : settings.defaultAgentId === null
+            ? "No custom agent"
+            : undefined;
+
+  const modelRow = (
+    <SettingsRow
+      serverScoped
+      settingKeys={["defaultModelSelection"]}
+      mixed={mixedModel}
+      id="default-model"
+      title="Model"
+      description={
+        isProjectScope
+          ? "Model for new threads in this project."
+          : "Default model for new threads. Projects can override it."
+      }
+      status={
+        unavailable || mixedModel || modelSource === "project"
+          ? undefined
+          : settings.defaultModelSelection === null
+            ? "Automatic"
+            : undefined
+      }
+      resetAction={
+        settings.defaultModelSelection !== null ? (
+          <SettingResetButton label="default model" onClick={() => setModel(null)} />
+        ) : null
+      }
+      control={
+        selection && activeEntry ? (
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+            <ProviderModelPicker
+              environmentId={representative?.environmentId ?? null}
+              activeInstanceId={selection.instanceId}
+              model={selection.model}
+              lockedProvider={null}
+              instanceEntries={entries}
+              modelOptionsByInstance={modelOptions}
+              triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
+              {...(mixedModel ? { triggerLabel: "Mixed" } : {})}
+              getModelDisabledReason={modelDisabledReason}
+              onOpenProviderSetup={(instanceId) => {
+                if (representative)
+                  void navigate({
+                    to: "/settings/providers",
+                    search: { environmentId: representative.environmentId, instanceId },
+                  });
+              }}
+              onInstanceModelChange={(instanceId, model) =>
+                setModel(createModelSelection(instanceId, model))
+              }
+            />
+            {!mixedModel ? (
+              <TraitsPicker
+                provider={activeEntry.driverKind}
+                models={activeEntry.models}
+                model={selection.model}
+                modelOptions={selection.options ?? []}
+                allowPromptInjectedEffort={false}
+                planModeEnabled={settings.planModeEnabled}
+                triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
+                onModelOptionsChange={(options) =>
+                  setModel(createModelSelection(selection.instanceId, selection.model, options))
+                }
+              />
+            ) : null}
+          </div>
+        ) : (
+          <span className="text-sm text-muted-foreground">No providers available</span>
+        )
+      }
+    />
+  );
+  const agentRow = (
+    <SettingsRow
+      serverScoped
+      settingKeys={["defaultAgentId"]}
+      mixed={mixedAgent}
+      id="default-agent"
+      title="Agent"
+      description={
+        isProjectScope
+          ? "Default custom agent for new threads in this project."
+          : "Default custom agent for new threads. Projects can override it."
+      }
+      status={agentStatus}
+      resetAction={
+        settings.defaultAgentId !== null ? (
+          <SettingResetButton label="default agent" onClick={() => setAgent(null)} />
+        ) : null
+      }
+      control={
+        <div className="flex items-center justify-end gap-1.5">
+          {agentRosterError ? (
+            <Button size="xs" variant="outline" onClick={refreshAgentRosters}>
+              <RefreshIcon size="xs" />
+              Retry
+            </Button>
+          ) : null}
+          <AgentPicker
+            agents={agentRoster.data ?? []}
+            selectedAgentId={settings.defaultAgentId}
+            onSelectAgent={(agentId) => setAgent(agentId ?? null)}
+            allowNone
+            allowDefault={false}
+            noneLabel={isProjectScope ? "No project default" : "No environment default"}
+            noneDescription={
+              isProjectScope
+                ? "New threads in this project do not use a custom agent by default."
+                : "New threads do not use a custom agent unless a project overrides this setting."
+            }
+            {...(mixedAgent ? { triggerLabel: "Mixed" } : {})}
+            getAgentDisabledReason={agentDisabledReason}
+            disabled={unavailable || (isAgentRosterPending && agentRoster.data === null)}
+            triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
+          />
+        </div>
+      }
+    />
+  );
+  const workspaceRow = (
+    <SettingsRow
+      serverScoped
+      settingKeys={["defaultThreadEnvMode"]}
+      mixed={mixedWorkspace}
+      id={searchableSetting("new-threads").id}
+      title="Workspace"
+      description={
+        isProjectScope
+          ? "Where new threads in this project start."
+          : "Where new threads start. Projects and their t3.json can override it."
+      }
+      resetAction={
+        !isProjectScope && settings.defaultThreadEnvMode !== null ? (
+          <SettingResetButton
+            label="default workspace"
+            onClick={() => updateSettings({ defaultThreadEnvMode: null })}
+          />
+        ) : null
+      }
+      control={
+        <Select
+          value={mixedWorkspace ? null : (effective?.defaultThreadEnvMode ?? null)}
+          onValueChange={(value) => {
+            if (value === "local" || value === "worktree")
+              updateSettings({ defaultThreadEnvMode: value });
+          }}
+        >
+          <SelectTrigger size="sm" aria-label="Default workspace">
+            <SelectValue>
+              {(value: string | null) =>
+                value === "local" || value === "worktree"
+                  ? resolveEnvModeLabel(value)
+                  : unavailable
+                    ? "Unavailable"
+                    : "Mixed"
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectPopup align="end" alignItemWithTrigger={false}>
+            <SelectItem value="local">{resolveEnvModeLabel("local")}</SelectItem>
+            <SelectItem value="worktree">{resolveEnvModeLabel("worktree")}</SelectItem>
+          </SelectPopup>
+        </Select>
+      }
+    />
+  );
+
+  return (
+    <SettingsSection
+      id={category === "source-control" ? "source-control-defaults" : "project-defaults"}
+      title={category === "source-control" ? "Repositories" : "New threads"}
+    >
+      {category === "project" ? (
+        <>
+          {modelRow}
+          {agentRow}
+          {workspaceRow}
+        </>
+      ) : category === "general" ? (
+        <>
+          {modelRow}
+          {agentRow}
+          <SettingsRow
+            serverScoped
+            settingKeys={["defaultRuntimeMode"]}
+            mixed={mixedPermissions}
+            {...searchableSetting("default-permissions")}
+            description={
+              isProjectScope
+                ? "Permissions for new threads in this project."
+                : "Default permissions for new threads. Projects can override them."
+            }
+            resetAction={
+              settings.defaultRuntimeMode !== DEFAULT_SERVER_SETTINGS.defaultRuntimeMode ? (
+                <SettingResetButton
+                  label="default permissions"
+                  onClick={() =>
+                    updateSettings({
+                      defaultRuntimeMode: DEFAULT_SERVER_SETTINGS.defaultRuntimeMode,
+                    })
+                  }
+                />
+              ) : null
+            }
+            control={
+              <Select
+                value={mixedPermissions ? null : settings.defaultRuntimeMode}
+                onValueChange={(value) => {
+                  if (value) updateSettings({ defaultRuntimeMode: value });
+                }}
+              >
+                <SelectTrigger size="sm" aria-label="Default permissions">
+                  {!mixedPermissions && (
+                    <PermissionIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  )}
+                  <SelectValue>
+                    {mixedPermissions
+                      ? "Mixed"
+                      : runtimeModeConfig[settings.defaultRuntimeMode].label}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  {runtimeModeOptions.map((mode) => {
+                    const option = runtimeModeConfig[mode];
+                    const Icon = option.icon;
+                    return (
+                      <SelectItem key={mode} value={mode} className="min-w-64">
+                        <div className="grid gap-0.5">
+                          <span className="inline-flex items-center gap-1.5 font-medium">
+                            <Icon className="size-3.5 shrink-0 text-muted-foreground" />
+                            {option.label}
+                          </span>
+                          <span className="text-xs leading-4 text-muted-foreground">
+                            {option.description}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectPopup>
+              </Select>
+            }
+          />
+          {workspaceRow}
+          <SettingsRow
+            serverScoped
+            settingKeys={["worktreeSubmodules"]}
+            mixed={mixedSubmodules}
+            {...searchableSetting("worktree-submodules")}
+            description={
+              isProjectScope
+                ? "How new worktrees in this project populate git submodules."
+                : "How new worktrees populate git submodules. Projects and their t3.json can override it."
+            }
+            resetAction={
+              !isProjectScope && settings.worktreeSubmodules !== null ? (
+                <SettingResetButton
+                  label="worktree submodules"
+                  onClick={() => updateSettings({ worktreeSubmodules: null })}
+                />
+              ) : null
+            }
+            control={
+              <Select
+                value={mixedSubmodules ? null : (effective?.worktreeSubmodules ?? null)}
+                onValueChange={(value) => {
+                  if (isWorktreeSubmodules(value)) updateSettings({ worktreeSubmodules: value });
+                }}
+              >
+                <SelectTrigger size="sm" aria-label="Worktree submodules">
+                  <SelectValue>
+                    {(value: string | null) =>
+                      isWorktreeSubmodules(value)
+                        ? WORKTREE_SUBMODULES_LABELS[value]
+                        : unavailable
+                          ? "Unavailable"
+                          : "Mixed"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  {WORKTREE_SUBMODULES_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {WORKTREE_SUBMODULES_LABELS[option]}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            }
+          />
+        </>
+      ) : (
+        <>
+          <SettingsRow
+            serverScoped
+            settingKeys={["defaultAutoPull"]}
+            mixed={mixedAutoPull}
+            id="automatic-pull"
+            title="Automatically pull"
+            description={
+              isProjectScope
+                ? "Keeps this project's default branch current when the checkout has no local changes or commits."
+                : "Keeps the default branch current when the checkout has no local changes or commits. Projects can override it."
+            }
+            resetAction={
+              settings.defaultAutoPull ? (
+                <SettingResetButton
+                  label="default automatic pull"
+                  tooltip="Reset automatic pull to off"
+                  onClick={() => updateSettings({ defaultAutoPull: false })}
+                />
+              ) : null
+            }
+            control={
+              <Switch
+                aria-label="Default automatic pull"
+                mixed={mixedAutoPull}
+                checked={mixedAutoPull ? false : settings.defaultAutoPull}
+                onCheckedChange={(enabled) => updateSettings({ defaultAutoPull: enabled })}
+              />
+            }
+          />
+          <SettingsRow
+            serverScoped
+            settingKeys={["removeAgentCreditsOnMerge"]}
+            mixed={mixedAgentCredits}
+            {...searchableSetting("remove-agent-credits-on-merge")}
+            description="Remove recognized agent credit lines from GitHub merge and squash messages, keeping human co-authors. Includes auto-merge. Excludes merge queues, stack merges, and existing commits."
+            resetAction={
+              settings.removeAgentCreditsOnMerge ? (
+                <SettingResetButton
+                  label="agent credit removal"
+                  tooltip="Keep agent credits"
+                  onClick={() => updateSettings({ removeAgentCreditsOnMerge: false })}
+                />
+              ) : null
+            }
+            control={
+              <Switch
+                aria-label="Remove agent credits when merging"
+                mixed={mixedAgentCredits}
+                checked={mixedAgentCredits ? false : settings.removeAgentCreditsOnMerge}
+                onCheckedChange={(enabled) =>
+                  updateSettings({ removeAgentCreditsOnMerge: enabled })
+                }
+              />
+            }
+          />
+          <SettingsRow
+            serverScoped
+            settingKeys={["pullRequestMergeMethod"]}
+            mixed={mixedMergeMethod}
+            {...searchableSetting("pull-request-merge-method")}
+            description={
+              isProjectScope
+                ? "Pull requests in this project start with this method."
+                : "Pull requests start with this method. Last selected reuses whatever you chose most recently on this device."
+            }
+            resetAction={
+              settings.pullRequestMergeMethod !== null ? (
+                <SettingResetButton
+                  label="default merge method"
+                  tooltip="Reset to last selected"
+                  onClick={() => updateSettings({ pullRequestMergeMethod: null })}
+                />
+              ) : null
+            }
+            control={
+              <Select
+                value={mixedMergeMethod ? null : (settings.pullRequestMergeMethod ?? "last")}
+                onValueChange={(value) => {
+                  if (value === "last") updateSettings({ pullRequestMergeMethod: null });
+                  else if (value === "merge" || value === "squash" || value === "rebase")
+                    updateSettings({ pullRequestMergeMethod: value });
+                }}
+              >
+                <SelectTrigger size="sm" aria-label="Default pull request merge method">
+                  <SelectValue>
+                    {(value: string | null) =>
+                      value === "merge" || value === "squash" || value === "rebase"
+                        ? PULL_REQUEST_MERGE_METHOD_LABELS[value]
+                        : value === "last"
+                          ? "Last selected"
+                          : "Mixed"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  <SelectItem value="last">Last selected</SelectItem>
+                  <SelectItem value="merge">{PULL_REQUEST_MERGE_METHOD_LABELS.merge}</SelectItem>
+                  <SelectItem value="squash">{PULL_REQUEST_MERGE_METHOD_LABELS.squash}</SelectItem>
+                  <SelectItem value="rebase">{PULL_REQUEST_MERGE_METHOD_LABELS.rebase}</SelectItem>
+                </SelectPopup>
+              </Select>
+            }
+          />
+        </>
+      )}
+    </SettingsSection>
+  );
+}
