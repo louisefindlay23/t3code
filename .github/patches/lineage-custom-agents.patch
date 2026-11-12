@@ -2045,9 +2045,18 @@ index 5257da599c..ebab8969bc 100644
            workspaceFileSystem.readFile(input).pipe(
              Effect.mapError(
 diff --git a/apps/web/src/components/ChatView.tsx b/apps/web/src/components/ChatView.tsx
-index 0ac0f494c8..4217414040 100644
+index 0ac0f494c8..22269fd4a8 100644
 --- a/apps/web/src/components/ChatView.tsx
 +++ b/apps/web/src/components/ChatView.tsx
+@@ -47,7 +47,7 @@ import { RightPanelSurfaceContent } from "./chat/RightPanelSurfaceContent";
+ import { usePendingThreadRequests } from "./chat/usePendingThreadRequests";
+ import { isScratchProject } from "@t3tools/client-runtime/state/projects";
+ import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
+-import type { UsageLimitSourceSnapshots } from "@t3tools/contracts";
++import type { AgentId, UsageLimitSourceSnapshots } from "@t3tools/contracts";
+ import { feedbackBannerItem } from "./chat/ComposerFeedback";
+ import { freshSessionBannerItem } from "./chat/ComposerFreshSession";
+ import { armFreshSession, disarmFreshSession, useFreshSessionArmed } from "./chat/freshSessionArms";
 @@ -268,6 +268,7 @@ import {
    useThreadCheckpointSummaries,
  } from "../state/entities";
@@ -2157,12 +2166,12 @@ index 0000000000..e83a76ca00
 +});
 diff --git a/apps/web/src/components/chat/AgentPicker.tsx b/apps/web/src/components/chat/AgentPicker.tsx
 new file mode 100644
-index 0000000000..ad30d3e5c6
+index 0000000000..a16081b168
 --- /dev/null
 +++ b/apps/web/src/components/chat/AgentPicker.tsx
-@@ -0,0 +1,273 @@
+@@ -0,0 +1,272 @@
 +import { memo } from "react";
-+import { BotIcon } from "lucide-react";
++import { BotIcon, ChevronDownIcon } from "lucide-react";
 +import type { AgentId, AgentSummary } from "@t3tools/contracts";
 +
 +import { cn } from "~/lib/utils";
@@ -2178,7 +2187,6 @@ index 0000000000..ad30d3e5c6
 +} from "../ui/menu";
 +import {
 +  ComposerControl,
-+  ComposerControlChevron,
 +  ComposerControlIcon,
 +  type ComposerControlSize,
 +} from "./ComposerControl";
@@ -2413,7 +2421,7 @@ index 0000000000..ad30d3e5c6
 +            {activeAgent.tier === "economy" ? "Economy" : "Reasoning"}
 +          </Badge>
 +        ) : null}
-+        <ComposerControlChevron size={size} />
++        <ComposerControlIcon icon={ChevronDownIcon} size={size} />
 +      </MenuTrigger>
 +
 +      <MenuPopup align="start" {...menuProps} className="w-64 max-w-[calc(100vw-2rem)]">
@@ -2435,10 +2443,19 @@ index 0000000000..ad30d3e5c6
 +  );
 +});
 diff --git a/apps/web/src/components/chat/ChatComposer.tsx b/apps/web/src/components/chat/ChatComposer.tsx
-index bafafcb961..b89179d646 100644
+index bafafcb961..f52f999281 100644
 --- a/apps/web/src/components/chat/ChatComposer.tsx
 +++ b/apps/web/src/components/chat/ChatComposer.tsx
-@@ -334,6 +334,8 @@ export interface ChatComposerHandle {
+@@ -190,6 +190,8 @@ import { readThreadShell } from "~/state/entities";
+ import { useLinkedEnvironments } from "~/state/peerLinks";
+ import { encodeComposerContextFragment } from "@t3tools/shared/composerContextClipboard";
+ import type {
++  AgentId,
++  AgentSummary,
+   ComposerContextRecord,
+   OrchestrationV2Run,
+   ThreadPullRequestLink,
+@@ -334,6 +336,8 @@ export interface ChatComposerHandle {
      environmentContexts: EnvironmentContextRecord[];
      selectedPromptEffort: string | null;
      selectedModelSelection: ModelSelection;
@@ -2447,7 +2464,7 @@ index bafafcb961..b89179d646 100644
      multipleModelSelections: ReadonlyArray<ModelSelection> | null;
      providerAvailable: boolean;
      selectedProvider: ProviderDriverKind;
-@@ -456,6 +458,12 @@ export interface ChatComposerProps {
+@@ -456,6 +460,12 @@ export interface ChatComposerProps {
    }> | null;
    onRemoveEditingQueuedAttachment: (attachmentId: string) => void;
  
@@ -2460,7 +2477,7 @@ index bafafcb961..b89179d646 100644
    onCompactContext: () => void;
    onSend: (
      e?: { preventDefault: () => void },
-@@ -583,6 +591,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
+@@ -583,6 +593,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
      onFileOpen,
      editingQueuedAttachments,
      onRemoveEditingQueuedAttachment,
@@ -2472,7 +2489,7 @@ index bafafcb961..b89179d646 100644
    } = props;
    const primaryEnvironmentId = usePrimaryEnvironmentId();
    const composerDraftTargetKey = composerTargetKey(composerDraftTarget);
-@@ -2458,6 +2471,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
+@@ -2458,6 +2473,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
        onModelPickerOpenChange={setIsComposerModelPickerOpen}
        modelPickerIconClassName={composerProviderState.modelPickerIconClassName}
        getModelDisabledReason={getModelDisabledReason}
@@ -2484,7 +2501,7 @@ index bafafcb961..b89179d646 100644
      />
    );
    // An open question owns the space above the composer. Only a machine problem,
-@@ -3138,6 +3156,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
+@@ -3138,6 +3158,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
          environmentContexts: composerEnvironmentContexts,
          selectedPromptEffort,
          selectedModelSelection,
@@ -2493,7 +2510,7 @@ index bafafcb961..b89179d646 100644
          multipleModelSelections:
            routeKind === "draft" && multipleModelSelections !== null
              ? multipleModelSelections.map((selection) =>
-@@ -3207,6 +3227,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
+@@ -3207,6 +3229,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
        selectedInstanceId,
        reportedModelSelection,
        selectedModelSelection,
@@ -2616,10 +2633,19 @@ index 102d9734de..38bc712dcd 100644
        ? CornerLeftUpIcon
        : isSubagent
 diff --git a/apps/web/src/components/chat/useComposerSend.ts b/apps/web/src/components/chat/useComposerSend.ts
-index 962a0a4cde..be74f8d7ce 100644
+index 962a0a4cde..8ca0e77943 100644
 --- a/apps/web/src/components/chat/useComposerSend.ts
 +++ b/apps/web/src/components/chat/useComposerSend.ts
-@@ -1102,6 +1102,7 @@ export function useComposerSend(input: ComposerSendInput) {
+@@ -572,6 +572,8 @@ export function useComposerSend(input: ComposerSendInput) {
+       selectedProviderModels: ctxSelectedProviderModels,
+       selectedPromptEffort: ctxSelectedPromptEffort,
+       selectedModelSelection: ctxSelectedModelSelection,
++      selectedModelSelectionExplicit: ctxSelectedModelSelectionExplicit,
++      selectedAgentId: ctxSelectedAgentId,
+     } = sendCtx;
+     const { images: composerImages, previewAnnotations: composerPreviewAnnotations } =
+       mergeDirectPreviewAnnotation({
+@@ -1102,6 +1104,7 @@ export function useComposerSend(input: ComposerSendInput) {
          project: activeProject,
          branch: activeThreadBranch!,
          selections: multipleModelSelections,
@@ -2627,7 +2653,7 @@ index 962a0a4cde..be74f8d7ce 100644
          targets: multipleTargets,
          sendSnapshot,
          createdAt: messageCreatedAt,
-@@ -1241,6 +1242,8 @@ export function useComposerSend(input: ComposerSendInput) {
+@@ -1241,6 +1244,8 @@ export function useComposerSend(input: ComposerSendInput) {
                        projectId: activeProject.id,
                        title,
                        modelSelection: threadCreateModelSelection,
@@ -2672,7 +2698,7 @@ index ccea237896..5fa75eff4f 100644
                        interactionMode: DEFAULT_INTERACTION_MODE,
                        branch,
 diff --git a/apps/web/src/components/settings/ProjectDefaultsSettings.tsx b/apps/web/src/components/settings/ProjectDefaultsSettings.tsx
-index 182b8bc5b1..913d8ee6de 100644
+index 182b8bc5b1..043fa3dc29 100644
 --- a/apps/web/src/components/settings/ProjectDefaultsSettings.tsx
 +++ b/apps/web/src/components/settings/ProjectDefaultsSettings.tsx
 @@ -1,5 +1,11 @@
@@ -2687,7 +2713,15 @@ index 182b8bc5b1..913d8ee6de 100644
    type ModelSelection,
    type WorktreeSubmodules,
    managedRuntimeModeDenial,
-@@ -19,6 +25,7 @@ import { firstManagedDenial } from "../../state/managedPolicy";
+@@ -15,16 +21,23 @@ import {
+ } from "../../modelSelection";
+ import { providerInstanceEntriesFor } from "../../providerInstances";
+ import { useEnvironmentProviders, useEnvironments } from "../../state/environments";
++import { useProjects } from "../../state/entities";
++import { agentRosterQuery } from "../../state/agents";
+ import { firstManagedDenial } from "../../state/managedPolicy";
++import { formatEnvironmentQueryError, useEnvironmentQuery } from "../../state/query";
++import { appAtomRegistry } from "../../rpc/atomRegistry";
  import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
  import { resolveEnvModeLabel, WORKTREE_SUBMODULES_LABELS } from "../BranchToolbar.logic";
  import { ProviderModelPicker } from "../chat/ProviderModelPicker";
@@ -2695,7 +2729,15 @@ index 182b8bc5b1..913d8ee6de 100644
  import { runtimeModeConfig, runtimeModeOptions } from "../chat/runtimeModeConfig";
  import { PULL_REQUEST_MERGE_METHOD_LABELS } from "../pullRequest/pullRequestDetail.logic";
  import { TraitsPicker } from "../chat/TraitsPicker";
-@@ -55,6 +62,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
+ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
+ import { toastManager } from "../ui/toast";
+ import { Switch } from "../ui/switch";
++import { Button } from "../ui/button";
++import { RefreshIcon } from "../ui/refresh-icon";
+ import { resolveDefaultModelSettingsPresentation } from "./ProjectDefaultsSettings.logic";
+ import type { ProjectSettingsCategory } from "./ProjectSettingsPanel";
+ import { searchableSetting } from "./settingsSearch";
+@@ -55,6 +68,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
    const updateSettings = useUpdateScopedSettings();
    const navigate = useNavigate();
    const { environments } = useEnvironments();
@@ -2703,7 +2745,35 @@ index 182b8bc5b1..913d8ee6de 100644
    const providersByEnvironment = useEnvironmentProviders();
    const representative = target
      ? environments.find((environment) => environment.environmentId === target.environmentId)
-@@ -125,6 +133,126 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
+@@ -63,6 +77,18 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
+     (representative?.serverConfig
+       ? providersByEnvironment.get(representative.environmentId)
+       : undefined) ?? EMPTY_SERVER_PROVIDERS;
++  const agentProjectId =
++    target?.projectId ??
++    projects.find((project) => project.environmentId === representative?.environmentId)?.id ??
++    null;
++  const agentRoster = useEnvironmentQuery(
++    representative && agentProjectId !== null
++      ? agentRosterQuery({
++          environmentId: representative.environmentId,
++          input: { projectId: agentProjectId },
++        })
++      : null,
++  );
+   const entries = providerInstanceEntriesFor(providers, settings, target?.projectId ?? null);
+   const presentation = resolveDefaultModelSettingsPresentation({
+     entries,
+@@ -105,6 +131,8 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
+   const mixedAgentCredits = useScopedSettingsMixed(["removeAgentCreditsOnMerge"]);
+   const mixedMergeMethod = useScopedSettingsMixed(["pullRequestMergeMethod"]);
+   const modelSource = useScopedSettingSource(["defaultModelSelection"]);
++  const mixedAgent = useScopedSettingsMixed(["defaultAgentId"]);
++  const agentSource = useScopedSettingSource(["defaultAgentId"]);
+   const isProjectScope = scope.kind === "project" || scope.kind === "checkout";
+   const unavailable = connectedEnvironments.length === 0;
+   const effective = target
+@@ -125,6 +153,126 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
      updateSettings({ defaultModelSelection: value });
    };
  
@@ -2830,7 +2900,7 @@ index 182b8bc5b1..913d8ee6de 100644
    const modelRow = (
      <SettingsRow
        serverScoped
-@@ -197,6 +325,53 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
+@@ -197,6 +345,53 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
        }
      />
    );
@@ -2967,10 +3037,17 @@ index df880e49c6..aa6d56fd06 100644
  
  On web and desktop, select text within one assistant response and choose
 diff --git a/packages/client-runtime/src/operations/commands.ts b/packages/client-runtime/src/operations/commands.ts
-index 894a961e01..a6686391b6 100644
+index 894a961e01..f51b4a568a 100644
 --- a/packages/client-runtime/src/operations/commands.ts
 +++ b/packages/client-runtime/src/operations/commands.ts
-@@ -80,6 +80,7 @@ export interface CreateThreadInput extends CommandMetadata {
+@@ -1,5 +1,6 @@
+ import { remapComposerContextAttachments } from "@t3tools/shared/composerContextReferences";
+ import {
++  type AgentId,
+   type ThreadLinkedPullRequest,
+   CommandId,
+   CheckpointId,
+@@ -80,6 +81,7 @@ export interface CreateThreadInput extends CommandMetadata {
    readonly projectId: ProjectId;
    readonly title: string;
    readonly modelSelection: ModelSelection;
@@ -2978,7 +3055,7 @@ index 894a961e01..a6686391b6 100644
    readonly runtimeMode: RuntimeMode;
    readonly interactionMode: ProviderInteractionMode;
    readonly branch: string | null;
-@@ -156,6 +157,9 @@ interface StartThreadBootstrap {
+@@ -156,6 +158,9 @@ interface StartThreadBootstrap {
      readonly projectId: ProjectId;
      readonly title: string;
      readonly modelSelection: ModelSelection;
@@ -2988,7 +3065,7 @@ index 894a961e01..a6686391b6 100644
      readonly runtimeMode: RuntimeMode;
      readonly interactionMode: ProviderInteractionMode;
      readonly branch: string | null;
-@@ -455,6 +459,7 @@ export const createThread = Effect.fn("EnvironmentCommands.createThread")(functi
+@@ -455,6 +460,7 @@ export const createThread = Effect.fn("EnvironmentCommands.createThread")(functi
      projectId: input.projectId,
      title: input.title,
      modelSelection: input.modelSelection,
@@ -2996,7 +3073,7 @@ index 894a961e01..a6686391b6 100644
      runtimeMode: input.runtimeMode,
      interactionMode: input.interactionMode,
      branch: input.branch,
-@@ -768,6 +773,10 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
+@@ -768,6 +774,10 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
        title: input.titleSeed ?? thread.title,
        generateTitle: input.titleSeed !== undefined,
        modelSelection: input.modelSelection ?? thread.modelSelection,
@@ -3007,7 +3084,7 @@ index 894a961e01..a6686391b6 100644
        runtimeMode: input.runtimeMode,
        interactionMode: input.interactionMode,
        workspaceStrategy,
-@@ -776,6 +785,9 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
+@@ -776,6 +786,9 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
          text: input.message.text,
          ...(context ? { context } : {}),
          attachments,
