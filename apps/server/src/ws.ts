@@ -41,6 +41,7 @@ import {
   type EditorId,
   type FileManagerRevealKind,
   type OrchestrationV2Command,
+  type OrchestrationV2ThreadLaunchInput,
   type GitActionProgressEvent,
   type GitManagerServiceError,
   type MessageId,
@@ -1426,7 +1427,9 @@ export const layerWsRpc = (
       const intakeContext = yield* Effect.context<
         | ThreadManagementService.ThreadManagementService
         | ThreadLaunchService.ThreadLaunchService
+        | ProjectService.ProjectService
         | FileSystem.FileSystem
+        | Path.Path
         | ServerConfig.ServerConfig
         | ServerSettings.ServerSettingsService
         | DocumentText.DocumentText
@@ -2940,6 +2943,7 @@ export const layerWsRpc = (
                 }),
             ),
           ),
+        [WS_METHODS.agentsList]: (input) => projectService.listAgents(input),
         [WS_METHODS.projectsReadFile]: (input) =>
           workspaceFileSystem.readFile(input).pipe(
             Effect.mapError(
