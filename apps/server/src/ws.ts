@@ -617,7 +617,7 @@ function shouldUseBoundedThreadSnapshot(input: {
   return input.acceptBoundedSnapshot === true;
 }
 
-export function threadLaunchInitialMessageFromRpc(
+function threadLaunchInitialMessageFromRpc(
   input: NonNullable<OrchestrationV2ThreadLaunchInput["initialMessage"]>,
 ): ThreadLaunchService.ThreadLaunchInitialMessage {
   return {
