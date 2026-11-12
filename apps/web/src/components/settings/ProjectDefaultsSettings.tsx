@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useAtomValue } from "@effect/atom-react";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/reactivity";
@@ -175,44 +174,39 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
     readonly agents: ReadonlyArray<AgentSummary> | null;
   }
 
-  const targetRostersAtom = useMemo(
-    () =>
-      Atom.make((get): ReadonlyArray<TargetRosterState> =>
-        targets.map((candidate) => {
-          const candidateProjectId =
-            candidate.projectId ??
-            projects.find((project) => project.environmentId === candidate.environmentId)?.id ??
-            null;
-          if (!candidateProjectId) {
-            return {
-              candidate,
-              queryAtom: null,
-              status: "success",
-              error: null,
-              isPending: false,
-              agents: [],
-            };
-          }
-          const queryAtom = agentRosterQuery({
-            environmentId: candidate.environmentId,
-            input: { projectId: candidateProjectId },
-          });
-          const result = get(queryAtom);
-          const isPending = result.waiting || result._tag === "Initial";
-          const error =
-            result._tag === "Failure" ? formatEnvironmentQueryError(result.cause) : null;
-          const agents = Option.getOrNull(AsyncResult.value(result));
-          return {
-            candidate,
-            queryAtom,
-            status: isPending ? "pending" : result._tag === "Failure" ? "failure" : "success",
-            error,
-            isPending,
-            agents,
-          };
-        }),
-      ),
-    [targets, projects],
+  const targetRostersAtom = Atom.make((get): ReadonlyArray<TargetRosterState> =>
+    targets.map((candidate) => {
+      const candidateProjectId =
+        candidate.projectId ??
+        projects.find((project) => project.environmentId === candidate.environmentId)?.id ??
+        null;
+      if (!candidateProjectId) {
+        return {
+          candidate,
+          queryAtom: null,
+          status: "success",
+          error: null,
+          isPending: false,
+          agents: [],
+        };
+      }
+      const queryAtom = agentRosterQuery({
+        environmentId: candidate.environmentId,
+        input: { projectId: candidateProjectId },
+      });
+      const result = get(queryAtom);
+      const isPending = result.waiting || result._tag === "Initial";
+      const error = result._tag === "Failure" ? formatEnvironmentQueryError(result.cause) : null;
+      const agents = Option.getOrNull(AsyncResult.value(result));
+      return {
+        candidate,
+        queryAtom,
+        status: isPending ? "pending" : result._tag === "Failure" ? "failure" : "success",
+        error,
+        isPending,
+        agents,
+      };
+    }),
   );
   const targetRosters = useAtomValue(targetRostersAtom);
 
@@ -376,7 +370,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
       control={
         <div className="flex items-center justify-end gap-1.5">
           {agentRosterError ? (
-            <Button size="xs" variant="outline" onClick={refreshAgentRosters} className="gap-1">
+            <Button size="xs" variant="outline" onClick={refreshAgentRosters}>
               <RefreshIcon size="xs" />
               Retry
             </Button>
