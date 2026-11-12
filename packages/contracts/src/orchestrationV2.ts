@@ -56,6 +56,7 @@ import {
   OrchestrationGetTurnDiffResult,
 } from "./checkpointDiff.ts";
 import { ModelSelection } from "./modelSelection.ts";
+import { AgentId } from "./agentDefinition.ts";
 import {
   ThreadLinkedPullRequest,
   ThreadPullRequestLink,
@@ -463,6 +464,8 @@ export const OrchestrationV2AppThread = Schema.Struct({
   title: TrimmedNonEmptyString,
   providerInstanceId: ProviderInstanceId,
   modelSelection: ModelSelection,
+  /** Selected custom lead agent, applied to the first provider turn. */
+  agentId: Schema.optional(AgentId),
   runtimeMode: RuntimeMode,
   interactionMode: ProviderInteractionMode,
   branch: Schema.NullOr(TrimmedNonEmptyString),
@@ -2123,6 +2126,7 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   title: Schema.String,
   providerInstanceId: ProviderInstanceId,
   modelSelection: ModelSelection,
+  agentId: Schema.optional(AgentId),
   runtimeMode: RuntimeMode,
   interactionMode: ProviderInteractionMode,
   branch: Schema.NullOr(TrimmedNonEmptyString),
@@ -2973,6 +2977,7 @@ export const OrchestrationV2Command = Schema.Union([
     projectId: ProjectId,
     title: TrimmedNonEmptyString,
     modelSelection: ModelSelection,
+    agentId: Schema.optional(AgentId),
     runtimeMode: RuntimeMode,
     interactionMode: ProviderInteractionMode,
     branch: Schema.NullOr(TrimmedNonEmptyString),
@@ -3391,6 +3396,7 @@ export const OrchestrationV2Command = Schema.Union([
     parentRunId: RunId,
     parentNodeId: NodeId,
     task: TrimmedNonEmptyString,
+    targetAgentId: Schema.optional(AgentId),
     title: Schema.optional(TrimmedNonEmptyString),
     modelSelection: ModelSelection,
     runtimeMode: RuntimeMode,
@@ -3721,6 +3727,10 @@ export const OrchestrationV2ThreadLaunchInput = Schema.Struct({
   title: TrimmedNonEmptyString,
   generateTitle: Schema.optional(Schema.Boolean),
   modelSelection: ModelSelection,
+  /** Omitted inherits the project default; null explicitly opts out. */
+  agentId: Schema.optionalKey(Schema.NullOr(AgentId)),
+  /** True when the caller already selected this model and agent config must not replace it. */
+  modelSelectionExplicit: Schema.optional(Schema.Boolean),
   runtimeMode: RuntimeMode,
   interactionMode: ProviderInteractionMode,
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
@@ -3730,6 +3740,7 @@ export const OrchestrationV2ThreadLaunchInput = Schema.Struct({
       text: Schema.String,
       context: Schema.optional(OrchestrationMessageContext),
       attachments: Schema.Array(ChatAttachment),
+      sourcePlanRef: Schema.optional(Schema.Struct({ threadId: ThreadId, planId: PlanId })),
     }),
   ),
 });

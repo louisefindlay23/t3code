@@ -80,9 +80,11 @@ import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
@@ -108,6 +110,7 @@ import { isSnoozed } from "../orchestration-v2/ThreadSettlementService.ts";
 import { userFacingDispatchErrorMessage } from "../orchestration-v2/UserFacingErrors.ts";
 import * as ProjectService from "../project/ProjectService.ts";
 import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
+import * as AgentService from "../agent/AgentService.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import {
@@ -1073,6 +1076,8 @@ const make = Effect.gen(function* () {
   const providerAdapters = yield* ProviderAdapterRegistry.ProviderAdapterRegistryV2;
   const scheduledTasks = yield* ScheduledTaskService.ScheduledTaskService;
   const projects = yield* ProjectService.ProjectService;
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
   const threadLaunch = yield* ThreadLaunchService.ThreadLaunchService;
   const gitDriver = yield* GitVcsDriver.GitVcsDriver;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
@@ -1103,6 +1108,26 @@ const make = Effect.gen(function* () {
           ),
         )
       : Effect.succeed(project.defaultModelSelection);
+
+  const provideAgentFiles = <A, E>(
+    effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path>,
+  ): Effect.Effect<A, E> =>
+    effect.pipe(
+      Effect.provideService(FileSystem.FileSystem, fileSystem),
+      Effect.provideService(Path.Path, path),
+    );
+
+  const loadAgentDefinitions = (
+    parent: { readonly thread: { readonly projectId: ProjectId } } | undefined,
+  ) =>
+    provideAgentFiles(
+      (parent === undefined
+        ? Effect.succeed(null)
+        : requireProject(parent.thread.projectId).pipe(
+            Effect.map((project) => project.workspaceRoot),
+          )
+      ).pipe(Effect.flatMap(AgentService.listAgentDefinitions)),
+    );
   const secretRequests = yield* SecretRequests.SecretRequests;
 
   const requireCapability = (scope: McpInvocationScope) =>
@@ -2342,6 +2367,12 @@ const make = Effect.gen(function* () {
       const settings = yield* serverSettings.getSettings.pipe(
         Effect.mapError(() => failure("orchestration_error", "Unable to read server settings.")),
       );
+      const agentDefinitions = yield* loadAgentDefinitions(parent);
+      const leadAgent =
+        parent?.thread.agentId === undefined
+          ? undefined
+          : agentDefinitions.find((agent) => agent.id === parent.thread.agentId);
+      const allowedAgentIds = new Set(leadAgent?.canDelegateTo ?? []);
       const inherited = parent?.thread.modelSelection;
       const searchTerms = input.search?.toLowerCase().split(/\s+/).filter(Boolean) ?? [];
       return {
@@ -2407,6 +2438,13 @@ const make = Effect.gen(function* () {
             constraints: [...constraints],
           };
         }),
+        agents: agentDefinitions
+          .filter((agent) =>
+            parent?.thread.agentId === undefined
+              ? true
+              : leadAgent !== undefined && allowedAgentIds.has(agent.id),
+          )
+          .map(AgentService.summarizeAgentDefinition),
         features: {
           appOwnedSubagents: true,
           asyncPolling: true,
@@ -2459,7 +2497,6 @@ const make = Effect.gen(function* () {
           "Delegated tasks require an active run owned by this MCP provider session.",
         );
       }
-      const providers = yield* loadProviders;
       const key = yield* requestKey(input.clientRequestId);
       const commandId = stableCommandId({
         scope,
@@ -2467,9 +2504,102 @@ const make = Effect.gen(function* () {
         operation: "delegate-task",
       });
       const isRetryOfAcceptedDelegation = yield* threadManagement.hasReceipt(commandId);
+      const definitions = isRetryOfAcceptedDelegation ? [] : yield* loadAgentDefinitions(parent);
+      const leadAgent = parent.thread.agentId
+        ? definitions.find((agent) => agent.id === parent.thread.agentId)
+        : undefined;
+      if (
+        !isRetryOfAcceptedDelegation &&
+        parent.thread.agentId !== undefined &&
+        leadAgent === undefined
+      ) {
+        return yield* failure(
+          "invalid_request",
+          `Custom lead agent ${parent.thread.agentId} is no longer available; delegation is disabled.`,
+        );
+      }
+      if (
+        !isRetryOfAcceptedDelegation &&
+        leadAgent !== undefined &&
+        (input.targetAgentId === undefined ||
+          !leadAgent.canDelegateTo.includes(input.targetAgentId))
+      ) {
+        return yield* failure(
+          "invalid_request",
+          `Custom lead agent ${leadAgent.id} may delegate only to agents listed in its canDelegateTo policy.`,
+        );
+      }
+      const agent = input.targetAgentId
+        ? definitions.find((candidate) => candidate.id === input.targetAgentId)
+        : undefined;
+      if (
+        !isRetryOfAcceptedDelegation &&
+        input.targetAgentId !== undefined &&
+        agent === undefined
+      ) {
+        return yield* failure(
+          "invalid_request",
+          `Agent ${input.targetAgentId} was not found in the project workspace.`,
+        );
+      }
+      let providers = yield* loadProviders;
+      let agentSelection =
+        agent === undefined || input.target?.model !== undefined
+          ? undefined
+          : AgentService.resolveModelForAgent(
+              agent,
+              providers.filter(
+                (provider) =>
+                  (input.target?.providerInstanceId === undefined ||
+                    provider.instanceId === input.target.providerInstanceId) &&
+                  (input.target?.driverKind === undefined ||
+                    provider.driver === input.target.driverKind),
+              ),
+              parent.thread.modelSelection.instanceId,
+            );
+      if (
+        agent?.model !== undefined &&
+        input.target?.model === undefined &&
+        agentSelection === undefined
+      ) {
+        providers = yield* providerRegistry.refreshInstance(agent.model.instanceId);
+        agentSelection = AgentService.resolveModelForAgent(
+          agent,
+          providers.filter(
+            (provider) =>
+              (input.target?.providerInstanceId === undefined ||
+                provider.instanceId === input.target.providerInstanceId) &&
+              (input.target?.driverKind === undefined ||
+                provider.driver === input.target.driverKind),
+          ),
+          parent.thread.modelSelection.instanceId,
+        );
+      }
+      if (
+        agent !== undefined &&
+        (agent.model !== undefined || agent.tier !== undefined) &&
+        input.target?.model === undefined &&
+        agentSelection === undefined
+      ) {
+        return yield* failure(
+          "invalid_request",
+          `Custom agent ${agent.id} has no available model for its configured ${agent.model === undefined ? `${agent.tier} tier` : "model"} on the selected target.`,
+        );
+      }
+      const agentTarget =
+        agentSelection === undefined
+          ? input.target
+          : {
+              ...input.target,
+              providerInstanceId: input.target?.providerInstanceId ?? agentSelection.instanceId,
+              model: agentSelection.model,
+              ...(input.target?.options === undefined && agentSelection.options !== undefined
+                ? { options: agentSelection.options }
+                : {}),
+            };
       const target = yield* resolveTargetRechecking({
         parent,
-        target: input.target,
+        target: agentTarget,
         providers,
         skipProjectEnablementFilter: isRetryOfAcceptedDelegation,
       });
@@ -2525,6 +2655,7 @@ const make = Effect.gen(function* () {
           parentRunId: parentRun.id,
           parentNodeId: parentRun.rootNodeId,
           task: taskPrompt(input),
+          ...(input.targetAgentId === undefined ? {} : { targetAgentId: input.targetAgentId }),
           ...(input.title === undefined ? {} : { title: input.title }),
           modelSelection: target.modelSelection,
           runtimeMode,
@@ -3343,6 +3474,8 @@ export const layer: Layer.Layer<
   | ProviderAdapterRegistry.ProviderAdapterRegistryV2
   | ScheduledTaskService.ScheduledTaskService
   | ProjectService.ProjectService
+  | FileSystem.FileSystem
+  | Path.Path
   | SecretRequests.SecretRequests
   | ServerSettings.ServerSettingsService
   | RemoteDelegation.RemoteDelegation

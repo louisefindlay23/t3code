@@ -21,6 +21,7 @@ import * as Option from "effect/Option";
 import { ATTACHMENT_ONLY_BOOTSTRAP_PROMPT } from "@t3tools/shared/composerContextReferences";
 
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
+import * as ProjectService from "../project/ProjectService.ts";
 import * as ProjectStore from "./ProjectStore.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
@@ -63,6 +64,11 @@ function makeHarness(
   const layerServerSettings = ServerSettings.layerTest({});
   const layerThreadManagement = ThreadManagement.layer.pipe(
     Layer.provide(layerOrchestrator),
+    Layer.provide(
+      Layer.mock(ProjectService.ProjectService)({
+        listAgents: () => Effect.succeed([]),
+      }),
+    ),
     Layer.provide(layerServerSettings),
     Layer.provide(CommandReceiptStore.layer.pipe(Layer.provide(layerDatabase))),
   );
