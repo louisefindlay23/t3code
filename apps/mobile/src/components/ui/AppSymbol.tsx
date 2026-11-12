@@ -86,6 +86,7 @@ import IconLetterSpacing from "@tabler/icons-react-native/IconLetterSpacing";
 import IconMicrophone from "@tabler/icons-react-native/IconMicrophone";
 import IconLink from "@tabler/icons-react-native/IconLink";
 import IconListNumbers from "@tabler/icons-react-native/IconListNumbers";
+import IconMail from "@tabler/icons-react-native/IconMail";
 import IconMenu2 from "@tabler/icons-react-native/IconMenu2";
 import IconMessageCircleQuestion from "@tabler/icons-react-native/IconMessageCircleQuestion";
 import IconMessage from "@tabler/icons-react-native/IconMessage";
@@ -194,6 +195,7 @@ const ANDROID_ICON_BY_SF_SYMBOL = {
   doc: IconFileText,
   "doc.on.doc": IconCopy,
   "doc.text": IconFileText,
+  "envelope.badge": IconMail,
   "file.diff": IconFileDiff,
   ellipsis: IconDots,
   moon: IconMoon,
