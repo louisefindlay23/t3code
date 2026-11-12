@@ -4,9 +4,11 @@ import * as NodePath from "node:path";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
 import {
+  AgentId,
   ChatAttachmentId,
   CommandId,
   EventId,
+  ProjectId,
   RuntimeRequestId,
   ThreadId,
   TurnItemId,
@@ -17,7 +19,9 @@ import {
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { createPendingAttachmentId, resolveAttachmentPath } from "../attachmentStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
@@ -26,11 +30,16 @@ import {
   OrchestratorDispatchError,
 } from "./Orchestrator.ts";
 import * as ThreadManagementService from "./ThreadManagementService.ts";
+import * as ProjectService from "../project/ProjectService.ts";
 import { dispatchCommand } from "./ThreadMessageIntake.ts";
 
 const layerIntakeTest = ServerConfig.layerTest(process.cwd(), {
   prefix: "t3-question-intake-",
-}).pipe(Layer.provideMerge(NodeServices.layer), Layer.provideMerge(ServerSettings.layerTest()));
+}).pipe(
+  Layer.provideMerge(NodeServices.layer),
+  Layer.provideMerge(ServerSettings.layerTest()),
+  Layer.provideMerge(Layer.mock(ProjectService.ProjectService)({})),
+);
 
 const layerFailingDispatch = (captured: OrchestrationV2ServerCommand[]) =>
   Layer.mock(ThreadManagementService.ThreadManagementService)({
@@ -47,6 +56,87 @@ const layerFailingDispatch = (captured: OrchestrationV2ServerCommand[]) =>
   });
 
 const NOW = DateTime.makeUnsafe("2026-09-13T00:00:00.000Z");
+
+it.layer(NodeServices.layer)("delegated task agent policy", (it) => {
+  it.effect("enforces a custom lead agent's allowlist for named targets", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-agent-delegation-" });
+      const agentDirectory = NodePath.join(root, ".agents");
+      yield* fs.makeDirectory(agentDirectory, { recursive: true });
+      yield* fs.writeFileString(
+        NodePath.join(agentDirectory, "lead.agent.md"),
+        [
+          "---",
+          "id: lead",
+          "name: Lead",
+          "description: Delegates to the allowed reviewer.",
+          "canDelegateTo: [reviewer]",
+          "---",
+          "Coordinate the work.",
+        ].join("\n"),
+      );
+      yield* fs.writeFileString(
+        NodePath.join(agentDirectory, "reviewer.agent.md"),
+        [
+          "---",
+          "id: reviewer",
+          "name: Reviewer",
+          "description: Reviews changes.",
+          "---",
+          "Review.",
+        ].join("\n"),
+      );
+      yield* fs.writeFileString(
+        NodePath.join(agentDirectory, "coder.agent.md"),
+        ["---", "id: coder", "name: Coder", "description: Writes code.", "---", "Code."].join("\n"),
+      );
+
+      const projectId = ProjectId.make("project:agent-delegation");
+      const parentThreadId = ThreadId.make("thread:agent-delegation");
+      const dispatched: Array<OrchestrationV2ServerCommand> = [];
+      const parentShell = {
+        id: parentThreadId,
+        projectId,
+        agentId: AgentId.make("lead"),
+        deletedAt: null,
+      } as never;
+      const layer = Layer.mergeAll(
+        ServerConfig.layerTest(process.cwd(), { prefix: "t3-agent-delegation-" }).pipe(
+          Layer.provideMerge(NodeServices.layer),
+        ),
+        ServerSettings.layerTest(),
+        Layer.mock(ProjectService.ProjectService)({
+          getById: () => Effect.succeed(Option.some({ workspaceRoot: root } as never)),
+        }),
+        Layer.mock(ThreadManagementService.ThreadManagementService)({
+          getCommandReceipt: () => Effect.succeed(null),
+          getThreadShell: () => Effect.succeed(parentShell),
+          dispatch: (command) =>
+            Effect.sync(() => {
+              dispatched.push(command);
+              return {} as never;
+            }),
+        }),
+      );
+      const delegate = (targetAgentId: string) =>
+        dispatchCommand({
+          type: "delegated_task.request",
+          commandId: CommandId.make(`command:${targetAgentId}`),
+          parentThreadId,
+          targetAgentId: AgentId.make(targetAgentId),
+        } as never);
+
+      const rejected = yield* delegate("coder").pipe(Effect.flip, Effect.provide(layer));
+      expect(rejected).toBeInstanceOf(OrchestratorDispatchError);
+      expect(rejected.cause).toContain("canDelegateTo");
+      expect(dispatched).toHaveLength(0);
+
+      yield* delegate("reviewer").pipe(Effect.provide(layer));
+      expect(dispatched).toHaveLength(1);
+    }),
+  );
+});
 
 const answeredRespondEvents = (input: {
   readonly threadId: ThreadId;

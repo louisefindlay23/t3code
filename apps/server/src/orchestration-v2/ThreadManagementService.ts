@@ -55,6 +55,7 @@ import * as ThreadCommandExecutor from "./ThreadCommandExecutor.ts";
 import { DispatchModeLimit, exceededDispatchModeLimit } from "./DispatchModeLimit.ts";
 import { projectTurnItemForDetail } from "./WireProjection.ts";
 import * as LegacyV1ThreadImporter from "./legacy/LegacyV1ThreadImporter.ts";
+import * as ProjectService from "../project/ProjectService.ts";
 import * as ServerSettings from "../serverSettings.ts";
 
 export type ThreadManagementSendMode = "auto" | "queue" | "steer" | "restart";
@@ -369,6 +370,7 @@ export interface ThreadManagementServiceShape {
     Orchestrator.OrchestratorV2Error
   >;
   readonly getThreadShell: Orchestrator.OrchestratorV2["Service"]["getThreadShell"];
+  readonly getCommandReceipt: Orchestrator.OrchestratorV2["Service"]["getCommandReceipt"];
   readonly listProjectThreads: (input: {
     readonly projectId: ProjectId;
     readonly includeSubagents: boolean;
@@ -514,6 +516,7 @@ const make = Effect.gen(function* () {
   const legacyImporter = yield* LegacyV1ThreadImporter.LegacyV1ThreadImporter;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
   const receipts = yield* CommandReceiptStore.CommandReceiptStoreV2;
+  const projects = yield* ProjectService.ProjectService;
 
   const assertProviderInstanceEnabled: ThreadManagementServiceShape["assertProviderInstanceEnabled"] =
     (input) =>
@@ -669,9 +672,57 @@ const make = Effect.gen(function* () {
     }
   };
 
+  const validateThreadCreateAgent = (command: OrchestrationV2ServerCommand) => {
+    if (command.type !== "thread.create" || command.agentId === undefined) {
+      return Effect.void;
+    }
+
+    return receipts.getByCommandId(command.commandId).pipe(
+      Effect.mapError(
+        (cause) =>
+          new Orchestrator.OrchestratorDispatchError({
+            commandId: command.commandId,
+            commandType: command.type,
+            cause,
+          }),
+      ),
+      Effect.flatMap((receipt) => {
+        // Preserve receipt replay and conflict semantics owned by the orchestrator.
+        if (Option.isSome(receipt)) {
+          return Effect.void;
+        }
+
+        return projects.listAgents({ projectId: command.projectId }).pipe(
+          Effect.mapError(
+            (cause) =>
+              new Orchestrator.OrchestratorDispatchError({
+                commandId: command.commandId,
+                commandType: command.type,
+                cause,
+              }),
+          ),
+          Effect.flatMap((agents) =>
+            agents.some((agent) => agent.id === command.agentId)
+              ? Effect.void
+              : Effect.fail(
+                  new Orchestrator.OrchestratorCommandRejectedError({
+                    commandId: command.commandId,
+                    commandType: command.type,
+                    cause: new Error(
+                      `Custom agent '${command.agentId}' was not found in the project workspace.`,
+                    ),
+                  }),
+                ),
+          ),
+        );
+      }),
+    );
+  };
+
   const dispatch: ThreadManagementServiceShape["dispatch"] = (command) =>
     ensureCommandTranscripts(command).pipe(
       Effect.andThen(assertDispatchTargetEnabled(command)),
+      Effect.andThen(validateThreadCreateAgent(command)),
       Effect.andThen(orchestrator.dispatch(command)),
     );
 
@@ -1175,6 +1226,7 @@ const make = Effect.gen(function* () {
     getShellSnapshot: orchestrator.getShellSnapshot,
     readShellSnapshot: orchestrator.readShellSnapshot,
     getThreadShell: orchestrator.getThreadShell,
+    getCommandReceipt: orchestrator.getCommandReceipt,
     listProjectThreads,
     sendToThread,
     assertProviderInstanceEnabled,
@@ -1209,6 +1261,7 @@ export const layer: Layer.Layer<
   ThreadManagementService,
   never,
   | Orchestrator.OrchestratorV2
+  | ProjectService.ProjectService
   | ProviderSessionManager.ProviderSessionManagerV2
   | ServerSettings.ServerSettingsService
   | CommandReceiptStore.CommandReceiptStoreV2
@@ -1222,6 +1275,7 @@ export const layerWithLegacyImporter: Layer.Layer<
   never,
   | LegacyV1ThreadImporter.LegacyV1ThreadImporter
   | Orchestrator.OrchestratorV2
+  | ProjectService.ProjectService
   | ProviderSessionManager.ProviderSessionManagerV2
   | ServerSettings.ServerSettingsService
   | CommandReceiptStore.CommandReceiptStoreV2

@@ -2,6 +2,7 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 
+import { AgentId, AgentSummary } from "./agentDefinition.ts";
 import {
   ContextTransferId,
   IsoDateTime,
@@ -162,6 +163,12 @@ export const OrchestratorMcpDelegateTaskInput = Schema.Struct({
     description: "Self-contained task for one delegated child agent/subagent.",
   }),
   target: Schema.optional(OrchestratorMcpTarget),
+  targetAgentId: Schema.optional(
+    AgentId.annotate({
+      description:
+        "Custom agent from orchestrator_capabilities.agents to run the child as. Its instructions and configured model or tier apply at child startup unless target specifies a model. A custom lead's canDelegateTo allowlist applies to this T3 tool only; provider-native delegation is outside that enforcement scope. The tools frontmatter field is unsupported.",
+    }),
+  ),
   title: Schema.optional(OrchestratorMcpTitle),
   role: Schema.optional(OrchestratorMcpTaskRole),
   isolation: Schema.optional(
@@ -569,6 +576,7 @@ export const OrchestratorMcpCapabilitiesResult = Schema.Struct({
   runtimeMode: RuntimeMode,
   interactionMode: ProviderInteractionMode,
   providers: Schema.Array(OrchestratorMcpProviderCapability),
+  agents: Schema.optional(Schema.Array(AgentSummary)),
   features: Schema.Struct({
     appOwnedSubagents: Schema.Boolean,
     asyncPolling: Schema.Boolean,

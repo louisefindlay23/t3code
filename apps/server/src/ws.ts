@@ -40,6 +40,7 @@ import {
   type FileManagerRevealKind,
   type OrchestrationClientOrigin,
   type OrchestrationV2Command,
+  type OrchestrationV2ThreadLaunchInput,
   type GitActionProgressEvent,
   type GitManagerServiceError,
   type MessageId,
@@ -616,6 +617,21 @@ function shouldUseBoundedThreadSnapshot(input: {
   return input.acceptBoundedSnapshot === true;
 }
 
+export function threadLaunchInitialMessageFromRpc(
+  input: NonNullable<OrchestrationV2ThreadLaunchInput["initialMessage"]>,
+): ThreadLaunchService.ThreadLaunchInitialMessage {
+  return {
+    ...(input.messageId === undefined ? {} : { messageId: input.messageId }),
+    text: input.text,
+    attachments: input.attachments,
+    ...(input.context === undefined ? {} : { context: input.context }),
+    ...(input.sourcePlanRef === undefined ? {} : { sourcePlanRef: input.sourcePlanRef }),
+  };
+}
+
+// Optional client identity announced on the /ws upgrade URL next to wsTicket.
+// Lenient by design: absent or malformed values degrade to {} so a connection
+// never fails over attribution metadata.
 function readClientConnectionOrigin(
   request: HttpServerRequest.HttpServerRequest,
 ): OrchestrationClientOrigin {
@@ -1196,7 +1212,9 @@ export const layerWsRpc = (
       const intakeContext = yield* Effect.context<
         | ThreadManagementService.ThreadManagementService
         | ThreadLaunchService.ThreadLaunchService
+        | ProjectService.ProjectService
         | FileSystem.FileSystem
+        | Path.Path
         | ServerConfig.ServerConfig
         | ServerSettings.ServerSettingsService
       >();
@@ -1476,6 +1494,8 @@ export const layerWsRpc = (
                   projectId: input.projectId,
                   title: input.title ?? "Imported ACP session",
                   modelSelection: { instanceId: input.instanceId, model },
+                  agentId: null,
+                  modelSelectionExplicit: true,
                   runtimeMode: "approval-required",
                   interactionMode: "default",
                   workspaceStrategy: { type: "root" },
@@ -1956,22 +1976,17 @@ export const layerWsRpc = (
                       ? {}
                       : { generateTitle: input.generateTitle }),
                     modelSelection: input.modelSelection,
+                    ...(input.agentId === undefined ? {} : { agentId: input.agentId }),
+                    ...(input.modelSelectionExplicit === undefined
+                      ? {}
+                      : { modelSelectionExplicit: input.modelSelectionExplicit }),
                     runtimeMode: input.runtimeMode,
                     interactionMode: input.interactionMode,
                     workspaceStrategy: input.workspaceStrategy,
                     ...(input.initialMessage === undefined
                       ? {}
                       : {
-                          initialMessage: {
-                            ...(input.initialMessage.messageId === undefined
-                              ? {}
-                              : { messageId: input.initialMessage.messageId }),
-                            text: input.initialMessage.text,
-                            attachments: input.initialMessage.attachments,
-                            ...(input.initialMessage.context === undefined
-                              ? {}
-                              : { context: input.initialMessage.context }),
-                          },
+                          initialMessage: threadLaunchInitialMessageFromRpc(input.initialMessage),
                         }),
                     createdBy: "user",
                     creationSource: input.creationSource ?? "web",
@@ -2658,6 +2673,7 @@ export const layerWsRpc = (
                 }),
             ),
           ),
+        [WS_METHODS.agentsList]: (input) => projectService.listAgents(input),
         [WS_METHODS.projectsReadFile]: (input) =>
           workspaceFileSystem.readFile(input).pipe(
             Effect.mapError(
