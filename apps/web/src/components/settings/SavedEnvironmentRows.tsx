@@ -56,8 +56,8 @@ import { useT3ConnectAccountPage } from "../clerk/T3ConnectAccountPages";
 import { TunnelLimitAlert, TunnelUsageMeter } from "../cloud/TunnelUsage";
 import { environmentCatalog } from "~/connection/catalog";
 import { readEnvironmentScope } from "~/state/session";
+import { getServerUpdateTargetVersion } from "~/versionSkew";
 import { type EnvironmentPresentation, useRelayEnvironmentDiscovery } from "~/state/environments";
-import { APP_VERSION } from "~/branding";
 import { useManagedPolicy } from "~/state/managedPolicy";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { serverEnvironment } from "~/state/server";
@@ -363,7 +363,7 @@ export function SavedBackendListRow({
           environmentId={environmentId}
           serverLabel={`${environment.label} server`}
           fromVersion={lastDescriptor?.serverVersion}
-          targetVersion={APP_VERSION}
+          targetVersion={getServerUpdateTargetVersion()}
           label={serverUpdateState.status === "failed" ? "Retry update" : "Update"}
         />
       ) : null}
