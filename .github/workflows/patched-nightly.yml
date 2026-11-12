@@ -196,9 +196,9 @@ jobs:
           - Render Codex memory citations as readable references.
           - Hide settled or confirmed deleted child threads in Lineage; mark offline linked-environment children unavailable.
           - Add named workspace agents, a Composer picker, a project default agent, and per-launch model or reasoning/economy tier selection.
-          - Allow named T3 `delegate_task` targets according to each lead agent's allowlist.
+          - Allow named T3 delegate_task targets according to each lead agent's allowlist.
 
-          Agent selection remains explicit. Automatic complexity-based routing is a separate follow-up. The named-target allowlist covers T3 `delegate_task`, not provider-native subagent tools.
+          Agent selection remains explicit. Automatic complexity-based routing is a separate follow-up. The named-target allowlist covers T3 delegate_task, not provider-native subagent tools.
 
           The macOS installer is signed and notarized. The Windows installer is unsigned.
           EOF
