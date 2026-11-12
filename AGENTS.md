@@ -156,7 +156,8 @@ For authorized mobile verification, a missing or outdated native client is a bui
 
 ## Pull requests
 
-- Never make a PR unless the developer explicitly asks you to do so.
+- Fork fixes that change application behavior or improve a feature carried in the patched-nightly build always get a PR in `louisefindlay23/t3code`; do not leave this work only on a local branch or wait for a separate PR request. Keep these contributions fork-only unless Louise explicitly asks for an upstream PR.
+- Run the relevant build for the exact patched source before opening the PR. After the PR is merged, trigger the matching build or release workflow and verify its result and published artifacts. Merge only after required checks and reviews pass, and only when Louise has asked to ship the change.
 - Conventional commit titles, plain language: `fix(web): new threads no longer spike CPU`.
 - Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
 - UI changes need before/after images. Motion or timing needs a short video.
