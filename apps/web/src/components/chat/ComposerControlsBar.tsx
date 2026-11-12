@@ -1,5 +1,6 @@
 import type { ChatComposerProps } from "./ChatComposer";
 import type { PromptUltrathink } from "./TraitsPicker";
+import { AgentPicker, AgentPickerMenuContent } from "./AgentPicker";
 import type { ProviderInstanceEntry } from "../../providerInstances";
 import { type AppModelOption } from "../../modelSelection";
 import { CircleAlertIcon } from "lucide-react";
@@ -18,6 +19,8 @@ import {
   type ProviderInteractionMode,
   type RuntimeMode,
   type ServerProvider,
+  type AgentId,
+  type AgentSummary,
 } from "@t3tools/contracts";
 import { cn } from "~/lib/utils";
 import {
@@ -78,6 +81,11 @@ export function ComposerControlsBar(props: {
   onModelPickerOpenChange: (open: boolean) => void;
   modelPickerIconClassName: string | undefined;
   getModelDisabledReason: ChatComposerProps["getModelDisabledReason"];
+  agents?: ReadonlyArray<AgentSummary> | undefined;
+  selectedAgentId?: AgentId | null | undefined;
+  defaultAgentId?: AgentId | null | undefined;
+  onSelectAgent?: ChatComposerProps["onSelectAgent"] | undefined;
+  agentPickerDisabled?: boolean | undefined;
 }) {
   const {
     environmentId,
@@ -127,6 +135,11 @@ export function ComposerControlsBar(props: {
     onModelPickerOpenChange,
     modelPickerIconClassName,
     getModelDisabledReason,
+    agents,
+    selectedAgentId,
+    defaultAgentId,
+    onSelectAgent,
+    agentPickerDisabled = false,
   } = props;
   const providerTraitsMenuContent = renderProviderTraitsMenuContent({
     provider: selectedProvider,
@@ -156,11 +169,38 @@ export function ComposerControlsBar(props: {
     isComposerOwned: true,
   } satisfies Parameters<typeof renderProviderTraitsPicker>[0];
   const providerTraitsPicker = renderProviderTraitsPicker(providerTraitsPickerInput);
+  const hasAgentPicker = Boolean(
+    onSelectAgent && ((agents?.length ?? 0) > 0 || defaultAgentId || selectedAgentId),
+  );
+  const restingBlockIds: Array<"traits" | "agent" | "mode"> = [
+    ...(providerTraitsPicker ? (["traits"] as const) : []),
+    ...(hasAgentPicker ? (["agent"] as const) : []),
+    "mode",
+  ];
+  const hiddenRestingBlockIds = restingBlockIds.slice(
+    restingBlockIds.length - restingHiddenBlockCount,
+  );
   const restingProviderTraitsPicker = renderProviderTraitsPicker({
     ...providerTraitsPickerInput,
     size: composerControlsCollapsed ? "xs" : "sm",
-    hidden: composerControlsHidden || restingHiddenBlockCount > 1,
+    hidden: composerControlsHidden || hiddenRestingBlockIds.includes("traits"),
   });
+  const restingAgentPicker =
+    hasAgentPicker && onSelectAgent ? (
+      <>
+        <ComposerControlSeparator size={composerControlsCollapsed ? "xs" : "sm"} />
+        <AgentPicker
+          agents={agents}
+          selectedAgentId={selectedAgentId}
+          defaultAgentId={defaultAgentId}
+          onSelectAgent={onSelectAgent}
+          allowNone={!agentPickerDisabled}
+          size={composerControlsCollapsed ? "xs" : "sm"}
+          disabled={isSendBusy || agentPickerDisabled}
+          hidden={composerControlsHidden || hiddenRestingBlockIds.includes("agent")}
+        />
+      </>
+    ) : null;
   const restingBlockDefs = [
     ...(providerTraitsPicker
       ? [
@@ -175,6 +215,7 @@ export function ComposerControlsBar(props: {
           },
         ]
       : []),
+    ...(restingAgentPicker ? [{ id: "agent", content: restingAgentPicker }] : []),
     {
       id: "mode",
       content: (
@@ -184,16 +225,13 @@ export function ComposerControlsBar(props: {
           runtimeMode={compatibleRuntimeMode}
           runtimeModeOptions={compatibleRuntimeModeOptions}
           size={composerControlsCollapsed ? "xs" : "sm"}
-          hidden={composerControlsHidden || restingHiddenBlockCount > 0}
+          hidden={composerControlsHidden || hiddenRestingBlockIds.includes("mode")}
           onToggleInteractionMode={toggleInteractionMode}
           onRuntimeModeChange={handleRuntimeModeChange}
         />
       ),
     },
   ];
-  const hiddenRestingBlockIds = restingBlockDefs
-    .slice(restingBlockDefs.length - restingHiddenBlockCount)
-    .map((def) => def.id);
   // Its own element, so typing (which rebuilds the controls around it) leaves it cached.
   const composerModelPicker = (
     <ComposerModelPicker
@@ -319,6 +357,17 @@ export function ComposerControlsBar(props: {
             showInteractionModeToggle={planModeUiEnabled && hiddenRestingBlockIds.includes("mode")}
             traitsMenuContent={
               hiddenRestingBlockIds.includes("traits") ? providerTraitsMenuContent : undefined
+            }
+            agentMenuContent={
+              hiddenRestingBlockIds.includes("agent") && onSelectAgent ? (
+                <AgentPickerMenuContent
+                  agents={agents}
+                  selectedAgentId={selectedAgentId}
+                  defaultAgentId={defaultAgentId}
+                  onSelectAgent={onSelectAgent}
+                  allowNone={!agentPickerDisabled}
+                />
+              ) : undefined
             }
             onToggleInteractionMode={toggleInteractionMode}
             onRuntimeModeChange={handleRuntimeModeChange}
