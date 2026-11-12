@@ -51,6 +51,9 @@ jobs:
           # The environment filter and NAS update target are ported below because their old commits conflict upstream.
           patch_commits="$(git log --reverse --format='%H' --grep='^patch:' "$PATCH_BASE_SHA..$WORKFLOW_SHA" \
             | awk '$0 != "6611d52bdf24eb30ae3708f8fc7718334d1892d5" && $0 != "31a1311b2017ccb5e1b9a86735699b766069fa48"')"
+          # Include the merged Lineage and named-agent features for this ad-hoc test build.
+          patch_commits="${patch_commits}"$'\n'"8f7a8a5e1023854c2a089c5f0ac6dd383adc7958"
+          patch_commits="${patch_commits}"$'\n'"8ac4061a1d357a5e7a4fa5977b2359a1c2b6c45c"
           if [[ -z "$patch_commits" ]]; then
             echo "No patch commits were found after $PATCH_BASE." >&2
             exit 1
@@ -160,6 +163,8 @@ jobs:
           - Order active threads by the latest message or run activity.
           - Hide threads from disconnected environments and restore them on reconnect.
           - Render Codex memory citations as readable references.
+          - Hide settled and confirmed-deleted linked child threads in Lineage.
+          - Add named custom agents, project defaults, per-thread model or reasoning selection, and named delegation targets.
 
           The macOS installer is signed and notarized. The Windows installer is unsigned.
           EOF
