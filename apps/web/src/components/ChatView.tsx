@@ -54,6 +54,7 @@ import {
   AuthPreviewOperateScope,
   AuthTerminalOperateScope,
   type AssistantCitation,
+  type AgentId,
   type ChatFileAttachment,
   isProviderNativeSubagentThread,
   type EnvironmentId,
@@ -244,6 +245,7 @@ import {
   useThreadCheckpointSummaries,
 } from "../state/entities";
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
+import { agentRosterQuery } from "../state/agents";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
 import { ExpandedImageDialogHost, openExpandedImagePreview } from "./chat/ExpandedImageDialog";
@@ -409,6 +411,10 @@ export default function ChatView(props: ChatViewProps) {
   const canOperateThread = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const draftId = routeKind === "draft" ? props.draftId : null;
+  const [selectedDraftAgentId, setSelectedDraftAgentId] = useState<AgentId | null | undefined>(
+    undefined,
+  );
+  useEffect(() => setSelectedDraftAgentId(undefined), [draftId]);
   const handleNewThread = useNewThreadHandler();
   const routeThreadRef = scopeThreadRef(environmentId, threadId);
   const routeThreadKey = scopedThreadKey(routeThreadRef);
@@ -1056,6 +1062,18 @@ export default function ChatView(props: ChatViewProps) {
   const { projectCloneBannerItem, projectCloneSendBlockReason } =
     useProjectCloneBanner(activeProjectRef);
   const activeProjectDefaultModelSelection = activeProjectSettings.settings.defaultModelSelection;
+  const activeProjectDefaultAgentId = activeProjectSettings.settings.defaultAgentId;
+  const agentRoster = useEnvironmentQuery(
+    activeProject
+      ? agentRosterQuery({
+          environmentId: activeProject.environmentId,
+          input: {
+            projectId: activeProject.id,
+            ...(isServerThread && activeThread ? { threadId: activeThread.id } : {}),
+          },
+        })
+      : null,
+  );
   const handleNewThreadInActiveProject = () => {
     startNewThreadForProject(activeProjectRef, handleNewThread);
   };
@@ -3470,6 +3488,15 @@ export default function ChatView(props: ChatViewProps) {
                           {!composerMounted ? null : (
                             <ChatComposer
                               canOperateThread={canOperateThread}
+                              agents={agentRoster.data ?? []}
+                              selectedAgentId={
+                                isServerThread
+                                  ? (activeThreadShell?.agentId ?? null)
+                                  : selectedDraftAgentId
+                              }
+                              defaultAgentId={isServerThread ? null : activeProjectDefaultAgentId}
+                              onSelectAgent={setSelectedDraftAgentId}
+                              agentPickerDisabled={isServerThread}
                               reportedModelSelection={reportedModelSelection}
                               multipleModelSelections={multipleModelSelections}
                               supportsMultipleModels={

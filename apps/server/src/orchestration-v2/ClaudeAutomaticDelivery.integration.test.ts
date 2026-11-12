@@ -36,6 +36,7 @@ import * as EventSink from "./EventSink.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as LegacyV1ThreadImporter from "./legacy/LegacyV1ThreadImporter.ts";
+import * as ProjectService from "../project/ProjectService.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ThreadLaunchService from "./ThreadLaunchService.ts";
@@ -323,6 +324,11 @@ it.effect.each(deliveries)(
               Effect.provide(
                 ScheduledTaskService.layer.pipe(
                   Layer.provide(ThreadManagementService.layer),
+                  Layer.provide(
+                    Layer.mock(ProjectService.ProjectService)({
+                      listAgents: () => Effect.succeed([]),
+                    }),
+                  ),
                   Layer.provide(ServerSettings.layerTest()),
                   Layer.provide(
                     Layer.mock(LegacyV1ThreadImporter.LegacyV1ThreadImporter)({

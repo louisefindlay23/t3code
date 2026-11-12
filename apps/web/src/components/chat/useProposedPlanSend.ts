@@ -264,7 +264,6 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
     defaultRuntimeMode,
   } = input;
   const navigate = useNavigate();
-  const createThread = useOrchestrationCommand(threadEnvironment.create, { reportFailure: false });
   const deleteThread = useOrchestrationCommand(threadEnvironment.delete, { reportFailure: false });
   const startThreadTurn = useOrchestrationCommand(threadEnvironment.startTurn, {
     reportFailure: false,
@@ -307,47 +306,43 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
     sendInFlightRef.current = true;
     beginLocalDispatch({ preparingWorktree: false });
 
-    const createResult = await createThread({
+    const startResult = await startThreadTurn({
       environmentId,
       input: {
         threadId: nextThreadId,
-        projectId: activeProject.id,
-        title: nextThreadTitle,
+        message: {
+          messageId: newMessageId(),
+          role: "user",
+          text: outgoingImplementationPrompt,
+          attachments: [],
+        },
         modelSelection: nextThreadModelSelection,
+        titleSeed: nextThreadTitle,
         runtimeMode: defaultRuntimeMode,
         interactionMode: "default",
-        branch: activeThreadBranch,
-        worktreePath: activeThread.worktreePath,
+        sourceProposedPlan: {
+          threadId: activeThread.id,
+          planId: activeProposedPlan.id,
+        },
+        bootstrap: {
+          createThread: {
+            projectId: activeProject.id,
+            title: nextThreadTitle,
+            modelSelection: nextThreadModelSelection,
+            agentId: activeThread.agentId ?? null,
+            modelSelectionExplicit: true,
+            runtimeMode: defaultRuntimeMode,
+            interactionMode: "default",
+            branch: activeThreadBranch,
+            worktreePath: activeThread.worktreePath,
+            createdAt,
+          },
+        },
         createdAt,
       },
     });
     let failure: AtomCommandResult<unknown, unknown> | null =
-      createResult._tag === "Failure" ? createResult : null;
-
-    if (failure === null) {
-      const startResult = await startThreadTurn({
-        environmentId,
-        input: {
-          threadId: nextThreadId,
-          message: {
-            messageId: newMessageId(),
-            role: "user",
-            text: outgoingImplementationPrompt,
-            attachments: [],
-          },
-          modelSelection: nextThreadModelSelection,
-          titleSeed: nextThreadTitle,
-          runtimeMode: defaultRuntimeMode,
-          interactionMode: "default",
-          sourceProposedPlan: {
-            threadId: activeThread.id,
-            planId: activeProposedPlan.id,
-          },
-          createdAt,
-        },
-      });
-      failure = startResult._tag === "Failure" ? startResult : null;
-    }
+      startResult._tag === "Failure" ? startResult : null;
 
     if (failure === null) {
       const startedResult = await settlePromise(() =>

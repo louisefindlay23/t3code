@@ -1,5 +1,11 @@
+import { useMemo } from "react";
+import { useAtomValue } from "@effect/atom-react";
+import * as Option from "effect/Option";
+import { AsyncResult, Atom } from "effect/reactivity";
 import {
   DEFAULT_SERVER_SETTINGS,
+  type AgentId,
+  type AgentSummary,
   type ModelSelection,
   type ProviderInstanceId,
   type WorktreeSubmodules,
@@ -20,15 +26,22 @@ import {
   sortProviderInstanceEntries,
 } from "../../providerInstances";
 import { useEnvironmentProviders, useEnvironments } from "../../state/environments";
+import { useProjects } from "../../state/entities";
+import { agentRosterQuery } from "../../state/agents";
+import { formatEnvironmentQueryError, useEnvironmentQuery } from "../../state/query";
+import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { EMPTY_SERVER_PROVIDERS } from "../../state/server";
 import { resolveEnvModeLabel, WORKTREE_SUBMODULES_LABELS } from "../BranchToolbar.logic";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
+import { AgentPicker } from "../chat/AgentPicker";
 import { runtimeModeConfig, runtimeModeOptions } from "../chat/runtimeModeConfig";
 import { PULL_REQUEST_MERGE_METHOD_LABELS } from "../pullRequest/pullRequestDetail.logic";
 import { TraitsPicker } from "../chat/TraitsPicker";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { toastManager } from "../ui/toast";
 import { Switch } from "../ui/switch";
+import { Button } from "../ui/button";
+import { RefreshIcon } from "../ui/refresh-icon";
 import type { ProjectSettingsCategory } from "./ProjectSettingsPanel";
 import { searchableSetting } from "./settingsSearch";
 import { useSettingsScope } from "./SettingsScopeContext";
@@ -56,6 +69,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
   const updateSettings = useUpdateScopedSettings();
   const navigate = useNavigate();
   const { environments } = useEnvironments();
+  const projects = useProjects();
   const providersByEnvironment = useEnvironmentProviders();
   const representative = target
     ? environments.find((environment) => environment.environmentId === target.environmentId)
@@ -64,6 +78,18 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
     (representative?.serverConfig
       ? providersByEnvironment.get(representative.environmentId)
       : undefined) ?? EMPTY_SERVER_PROVIDERS;
+  const agentProjectId =
+    target?.projectId ??
+    projects.find((project) => project.environmentId === representative?.environmentId)?.id ??
+    null;
+  const agentRoster = useEnvironmentQuery(
+    representative && agentProjectId !== null
+      ? agentRosterQuery({
+          environmentId: representative.environmentId,
+          input: { projectId: agentProjectId },
+        })
+      : null,
+  );
   const storedSelection = resolveDefaultProviderModelSelection(
     providers,
     settings.defaultModelSelection,
@@ -86,6 +112,8 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
   );
   const activeEntry = entries.find((entry) => entry.instanceId === selection?.instanceId);
   const mixedModel = useScopedSettingsMixed(["defaultModelSelection"]);
+  const mixedAgent = useScopedSettingsMixed(["defaultAgentId"]);
+  const agentSource = useScopedSettingSource(["defaultAgentId"]);
   const mixedPermissions = useScopedSettingsMixed(["defaultRuntimeMode"]);
   const PermissionIcon = runtimeModeConfig[settings.defaultRuntimeMode].icon;
   const mixedWorkspace = useScopedSettingsMixed(["defaultThreadEnvMode"]);
@@ -137,6 +165,126 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
     }
     updateSettings({ defaultModelSelection: value });
   };
+
+  interface TargetRosterState {
+    readonly candidate: (typeof targets)[number];
+    readonly queryAtom: ReturnType<typeof agentRosterQuery> | null;
+    readonly status: "pending" | "success" | "failure";
+    readonly error: string | null;
+    readonly isPending: boolean;
+    readonly agents: ReadonlyArray<AgentSummary> | null;
+  }
+
+  const targetRostersAtom = useMemo(
+    () =>
+      Atom.make((get): ReadonlyArray<TargetRosterState> =>
+        targets.map((candidate) => {
+          const candidateProjectId =
+            candidate.projectId ??
+            projects.find((project) => project.environmentId === candidate.environmentId)?.id ??
+            null;
+          if (!candidateProjectId) {
+            return {
+              candidate,
+              queryAtom: null,
+              status: "success",
+              error: null,
+              isPending: false,
+              agents: [],
+            };
+          }
+          const queryAtom = agentRosterQuery({
+            environmentId: candidate.environmentId,
+            input: { projectId: candidateProjectId },
+          });
+          const result = get(queryAtom);
+          const isPending = result.waiting || result._tag === "Initial";
+          const error =
+            result._tag === "Failure" ? formatEnvironmentQueryError(result.cause) : null;
+          const agents = Option.getOrNull(AsyncResult.value(result));
+          return {
+            candidate,
+            queryAtom,
+            status: isPending ? "pending" : result._tag === "Failure" ? "failure" : "success",
+            error,
+            isPending,
+            agents,
+          };
+        }),
+      ),
+    [targets, projects],
+  );
+  const targetRosters = useAtomValue(targetRostersAtom);
+
+  function agentDisabledReason(agentId: AgentId): string | null {
+    for (const targetRoster of targetRosters) {
+      if (
+        targetRoster.agents !== null &&
+        !targetRoster.agents.some((agent) => agent.id === agentId)
+      ) {
+        return `This agent is unavailable on ${targetRoster.candidate.label ?? "a selected target"}. Select that target to choose its agent separately.`;
+      }
+    }
+    return null;
+  }
+
+  const setAgent = (value: AgentId | null) => {
+    if (value) {
+      const pendingTarget = targetRosters.find(
+        (candidate) => candidate.isPending && candidate.agents === null,
+      );
+      if (pendingTarget) {
+        toastManager.add({
+          type: "error",
+          title: "Default agent not saved",
+          description: `Loading custom agents for ${pendingTarget.candidate.label ?? "a selected target"}. Please wait before saving.`,
+        });
+        return;
+      }
+      const failedTarget = targetRosters.find(
+        (candidate) => candidate.error !== null && candidate.agents === null,
+      );
+      if (failedTarget) {
+        toastManager.add({
+          type: "error",
+          title: "Default agent not saved",
+          description: `Failed to load custom agents for ${failedTarget.candidate.label ?? "a selected target"}: ${failedTarget.error}`,
+        });
+        return;
+      }
+      const reason = agentDisabledReason(value);
+      if (reason) {
+        toastManager.add({ type: "error", title: "Default agent not saved", description: reason });
+        return;
+      }
+    }
+    updateSettings({ defaultAgentId: value });
+  };
+
+  const isAgentRosterPending =
+    !unavailable &&
+    (agentRoster.isPending || targetRosters.some((candidate) => candidate.isPending));
+  const agentRosterError = !unavailable
+    ? (agentRoster.error ??
+      targetRosters.find((candidate) => candidate.error !== null)?.error ??
+      null)
+    : null;
+  const refreshAgentRosters = () => {
+    agentRoster.refresh();
+    for (const candidate of targetRosters) {
+      if (candidate.queryAtom) appAtomRegistry.refresh(candidate.queryAtom);
+    }
+  };
+  const agentStatus =
+    unavailable || mixedAgent || agentSource === "project"
+      ? undefined
+      : agentRosterError
+        ? `Failed to load custom agents: ${agentRosterError}`
+        : isAgentRosterPending
+          ? "Loading custom agents…"
+          : settings.defaultAgentId === null
+            ? "No custom agent"
+            : undefined;
 
   const modelRow = (
     <SettingsRow
@@ -207,6 +355,53 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
       }
     />
   );
+  const agentRow = (
+    <SettingsRow
+      serverScoped
+      settingKeys={["defaultAgentId"]}
+      mixed={mixedAgent}
+      id="default-agent"
+      title="Agent"
+      description={
+        isProjectScope
+          ? "Default custom agent for new threads in this project."
+          : "Default custom agent for new threads. Projects can override it."
+      }
+      status={agentStatus}
+      resetAction={
+        settings.defaultAgentId !== null ? (
+          <SettingResetButton label="default agent" onClick={() => setAgent(null)} />
+        ) : null
+      }
+      control={
+        <div className="flex items-center justify-end gap-1.5">
+          {agentRosterError ? (
+            <Button size="xs" variant="outline" onClick={refreshAgentRosters} className="gap-1">
+              <RefreshIcon size="xs" />
+              Retry
+            </Button>
+          ) : null}
+          <AgentPicker
+            agents={agentRoster.data ?? []}
+            selectedAgentId={settings.defaultAgentId}
+            onSelectAgent={(agentId) => setAgent(agentId ?? null)}
+            allowNone
+            allowDefault={false}
+            noneLabel={isProjectScope ? "No project default" : "No environment default"}
+            noneDescription={
+              isProjectScope
+                ? "New threads in this project do not use a custom agent by default."
+                : "New threads do not use a custom agent unless a project overrides this setting."
+            }
+            {...(mixedAgent ? { triggerLabel: "Mixed" } : {})}
+            getAgentDisabledReason={agentDisabledReason}
+            disabled={unavailable || (isAgentRosterPending && agentRoster.data === null)}
+            triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
+          />
+        </div>
+      }
+    />
+  );
   const workspaceRow = (
     <SettingsRow
       serverScoped
@@ -263,11 +458,13 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
       {category === "project" ? (
         <>
           {modelRow}
+          {agentRow}
           {workspaceRow}
         </>
       ) : category === "general" ? (
         <>
           {modelRow}
+          {agentRow}
           <SettingsRow
             serverScoped
             settingKeys={["defaultRuntimeMode"]}

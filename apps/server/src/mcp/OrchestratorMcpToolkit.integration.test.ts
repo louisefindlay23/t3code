@@ -192,6 +192,17 @@ describe("orchestrator MCP toolkit", () => {
           },
           CodexOrchestratorReplayHarness,
         );
+        const layerProjectService = Layer.mock(ProjectService.ProjectService)({
+          getById: () =>
+            Effect.succeed(
+              Option.some({
+                id: projectId,
+                title: "Test project",
+                workspaceRoot: cwd,
+                defaultModelSelection: codexSelection,
+              } as never),
+            ),
+        });
         const layerOrchestration = Layer.merge(
           layerOrchestrator,
           ThreadManagementService.layer.pipe(
@@ -200,6 +211,7 @@ describe("orchestrator MCP toolkit", () => {
             Layer.provide(
               CommandReceiptStore.layer.pipe(Layer.provide(SqlitePersistence.layerMemory)),
             ),
+            Layer.provide(layerProjectService),
           ),
         );
         const layerProviderRegistry = ProviderRegistryMock.layer([
@@ -220,7 +232,7 @@ describe("orchestrator MCP toolkit", () => {
           Layer.provide(layerProviderRegistry),
           Layer.provide(ServerSettings.layerTest()),
           Layer.provide(layerUnusedScheduledTaskStub),
-          Layer.provide(Layer.mock(ProjectService.ProjectService)({})),
+          Layer.provide(layerProjectService),
           Layer.provideMerge(
             SecretRequests.layer.pipe(
               Layer.provide(layerMemorySecretStore),

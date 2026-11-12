@@ -24,10 +24,12 @@ import * as CommandReceiptStore from "./CommandReceiptStore.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProviderSessionManager from "./ProviderSessionManager.ts";
 import * as ThreadManagementService from "./ThreadManagementService.ts";
+import * as ProjectService from "../project/ProjectService.ts";
 
 const layerReceiptsTest = CommandReceiptStore.layer.pipe(
   Layer.provide(SqlitePersistence.layerMemory),
 );
+const layerProjectServiceTest = Layer.mock(ProjectService.ProjectService)({});
 
 const layerDispatchChokepointTest =
   (settingsLayer: ReturnType<typeof ServerSettings.layerTest>) => (dispatched: Array<string>) =>
@@ -56,6 +58,7 @@ const layerDispatchChokepointTest =
       ),
       Layer.provide(settingsLayer),
       Layer.provideMerge(layerReceiptsTest),
+      Layer.provide(layerProjectServiceTest),
     );
 
 it.effect(
@@ -167,6 +170,7 @@ it.effect("uses thread-not-found only after a projection loads outside the proje
     ),
     Layer.provide(ServerSettings.layerTest()),
     Layer.provide(layerReceiptsTest),
+    Layer.provide(layerProjectServiceTest),
   );
 
   return Effect.gen(function* () {
@@ -221,6 +225,7 @@ it.effect("waitForThread follows a restart continuation instead of the cut run",
       ),
       Layer.provide(ServerSettings.layerTest()),
       Layer.provide(layerReceiptsTest),
+      Layer.provide(layerProjectServiceTest),
     );
     const service = yield* ThreadManagementService.ThreadManagementService.pipe(
       Effect.provide(layerTest),
@@ -281,6 +286,7 @@ it.effect("waitForThread returns the cut run once its continuation is declined",
       ),
       Layer.provide(ServerSettings.layerTest()),
       Layer.provide(layerReceiptsTest),
+      Layer.provide(layerProjectServiceTest),
     );
     const service = yield* ThreadManagementService.ThreadManagementService.pipe(
       Effect.provide(layerTest),
@@ -327,6 +333,7 @@ it.effect.each([
       ),
       Layer.provide(ServerSettings.layerTest()),
       Layer.provide(layerReceiptsTest),
+      Layer.provide(layerProjectServiceTest),
     );
     const service = yield* ThreadManagementService.ThreadManagementService.pipe(
       Effect.provide(layerTest),

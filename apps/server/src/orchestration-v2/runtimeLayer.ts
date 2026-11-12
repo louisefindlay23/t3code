@@ -264,17 +264,15 @@ export const layerProjectSetupScriptRunner = ProjectSetupScriptRunner.layer.pipe
 const layerManagedProjectFoldersProvided = ManagedProjectFolders.layer.pipe(
   Layer.provide(layerProjectService),
 );
+const layerThreadLaunchDependencies = Layer.mergeAll(
+  layerProjectSetupScriptRunner,
+  layerManagedProjectFoldersProvided,
+  layerThreadManagementProvided,
+  layerCommandReceiptStoreProvided,
+  IdAllocator.layer,
+).pipe(Layer.provideMerge(layerProjectService));
 const layerThreadLaunchProvided = ThreadLaunchService.layer.pipe(
-  Layer.provide(
-    Layer.mergeAll(
-      layerProjectService,
-      layerProjectSetupScriptRunner,
-      layerManagedProjectFoldersProvided,
-      layerThreadManagementProvided,
-      layerCommandReceiptStoreProvided,
-      IdAllocator.layer,
-    ),
-  ),
+  Layer.provide(layerThreadLaunchDependencies),
 );
 const layerThreadLifecycleProvided = ThreadLifecycleService.layer.pipe(
   Layer.provide(layerThreadManagementProvided),
@@ -360,8 +358,7 @@ export const layer = Layer.mergeAll(
 );
 
 export const layerProduction = Layer.mergeAll(
-  layer.pipe(Layer.provide(layerProjectService)),
-  layerProjectService,
+  layer,
   layerManagedProjectFoldersProvided,
   layerThreadLaunchProvided,
   layerThreadLifecycleProvided,
@@ -383,4 +380,5 @@ export const layerProduction = Layer.mergeAll(
   Layer.provide(ResourceCleanupService.layer.pipe(Layer.provide(layerScheduledTaskProvided))),
   Layer.provide(Scheduler.layer),
   Layer.provideMerge(layerEventInfrastructure),
+  Layer.provideMerge(layerProjectService),
 );
