@@ -411,10 +411,17 @@ export default function ChatView(props: ChatViewProps) {
   const canOperateThread = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const draftId = routeKind === "draft" ? props.draftId : null;
-  const [selectedDraftAgentId, setSelectedDraftAgentId] = useState<AgentId | null | undefined>(
-    undefined,
-  );
-  useEffect(() => setSelectedDraftAgentId(undefined), [draftId]);
+  const [draftAgentSelection, setDraftAgentSelection] = useState<{
+    readonly draftId: DraftId | null;
+    readonly agentId: AgentId | null | undefined;
+  }>(() => ({ draftId, agentId: undefined }));
+  if (draftAgentSelection.draftId !== draftId) {
+    setDraftAgentSelection({ draftId, agentId: undefined });
+  }
+  const selectedDraftAgentId =
+    draftAgentSelection.draftId === draftId ? draftAgentSelection.agentId : undefined;
+  const selectDraftAgent = (agentId: AgentId | null | undefined) =>
+    setDraftAgentSelection({ draftId, agentId });
   const handleNewThread = useNewThreadHandler();
   const routeThreadRef = scopeThreadRef(environmentId, threadId);
   const routeThreadKey = scopedThreadKey(routeThreadRef);
@@ -3495,7 +3502,7 @@ export default function ChatView(props: ChatViewProps) {
                                   : selectedDraftAgentId
                               }
                               defaultAgentId={isServerThread ? null : activeProjectDefaultAgentId}
-                              onSelectAgent={setSelectedDraftAgentId}
+                              onSelectAgent={selectDraftAgent}
                               agentPickerDisabled={isServerThread}
                               reportedModelSelection={reportedModelSelection}
                               multipleModelSelections={multipleModelSelections}
