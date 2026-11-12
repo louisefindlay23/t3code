@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # Re-run the title/body intent gate when someone fixes a failed selection check.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches:
       - main
@@ -63,6 +65,9 @@ jobs:
   lint:
     name: Lint
     runs-on: ${{ github.repository == 'pingdotgg/t3code' && 'blacksmith-8vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
+    permissions:
+      contents: read
+      pull-requests: read
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -81,6 +86,38 @@ jobs:
             printf 'PR evidence must be uploaded to GitHub, not committed:\n%s\n' "$files" >&2
             exit 1
           fi
+
+      - name: Check patched-nightly selection
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { validatePatchIntent } = require("./.github/scripts/patched-nightly-pr-intent.cjs");
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const result = validatePatchIntent({
+              files: files.map(({ filename }) => filename),
+              title: context.payload.pull_request.title,
+              body: context.payload.pull_request.body ?? "",
+              commits: commits.map(({ commit }) => commit.message),
+            });
+            if (result.errors.length > 0) {
+              core.setFailed(result.errors.join("\n"));
+            } else if (result.sourceFiles.length > 0) {
+              core.info(`Patched-nightly intent is explicit for ${result.sourceFiles.length} product files.`);
+            } else {
+              core.info("No patched-nightly product files changed.");
+            }
 
       - name: Setup Vite+
         uses: ./.github/actions/setup-ci-deps
