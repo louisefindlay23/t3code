@@ -14,6 +14,8 @@ import {
 import type {
   KeybindingCommand,
   AssistantCitation,
+  AgentId,
+  AgentSummary,
   ChatAttachment as ContractChatAttachment,
   ChatFileAttachment,
   EnvironmentId,
@@ -350,6 +352,8 @@ export interface ChatComposerHandle {
     selectedPromptEffort: string | null;
     selectedModelOptionsForDispatch: unknown;
     selectedModelSelection: ModelSelection;
+    selectedModelSelectionExplicit: boolean;
+    selectedAgentId?: AgentId | null;
     multipleModelSelections: ReadonlyArray<ModelSelection> | null;
     providerAvailable: boolean;
     selectedProvider: ProviderDriverKind;
@@ -484,6 +488,12 @@ export interface ChatComposerProps {
     readonly url: string | null;
   }> | null;
   onRemoveEditingQueuedAttachment: (attachmentId: string) => void;
+
+  agents?: ReadonlyArray<AgentSummary> | undefined;
+  selectedAgentId?: AgentId | null | undefined;
+  defaultAgentId?: AgentId | null | undefined;
+  onSelectAgent?: ((agentId: AgentId | null | undefined) => void) | undefined;
+  agentPickerDisabled?: boolean | undefined;
 
   onCompactContext: () => void;
   onSend: (
@@ -636,6 +646,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     onFileOpen,
     editingQueuedAttachments,
     onRemoveEditingQueuedAttachment,
+    agents,
+    selectedAgentId,
+    defaultAgentId,
+    onSelectAgent,
+    agentPickerDisabled = false,
   } = props;
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const composerDraftTargetKey = composerTargetKey(composerDraftTarget);
@@ -2595,6 +2610,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       onModelPickerOpenChange={setIsComposerModelPickerOpen}
       modelPickerIconClassName={composerProviderState.modelPickerIconClassName}
       getModelDisabledReason={getModelDisabledReason}
+      agents={agents}
+      selectedAgentId={selectedAgentId}
+      defaultAgentId={defaultAgentId}
+      onSelectAgent={onSelectAgent}
+      agentPickerDisabled={agentPickerDisabled}
     />
   );
   const showTasksTab =
@@ -3272,6 +3292,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         selectedPromptEffort,
         selectedModelOptionsForDispatch,
         selectedModelSelection,
+        selectedModelSelectionExplicit: composerDraft.modelSelectionExplicit === true,
+        ...(selectedAgentId === undefined ? {} : { selectedAgentId }),
         multipleModelSelections:
           routeKind === "draft" && multipleModelSelections !== null
             ? multipleModelSelections.map((selection) =>
@@ -3344,6 +3366,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       settings.planModeEnabled,
       selectedModelOptionsForDispatch,
       selectedModelSelection,
+      selectedAgentId,
+      composerDraft.modelSelectionExplicit,
       multipleModelSelections,
       setMultipleModelSelections,
       routeKind,

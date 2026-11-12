@@ -53,6 +53,7 @@ import {
 } from "@t3tools/provider-core/server/failure";
 import * as RunExecutionService from "./RunExecutionService.ts";
 import * as RuntimePolicy from "./RuntimePolicy.ts";
+import { getAgentDefinition } from "../agent/AgentService.ts";
 import {
   isRestartNoteContinuation,
   pendingRestartCancelledBackgroundWork,
@@ -1019,12 +1020,37 @@ export const layer: Layer.Layer<
       const routableSubagents = projection.subagents.filter((subagent) =>
         RunExecutionService.canRouteRelatedSubagent(subagent.status),
       );
+      let agentInstructions: string | undefined;
+      const providerAlreadyReceivedTurn = projection.providerTurns.some(
+        (turn) => turn.providerThreadId === providerThread.id,
+      );
+      if (projection.thread.agentId !== undefined && !providerAlreadyReceivedTurn) {
+        const project = yield* projects.getById(projection.thread.projectId);
+        const projectRoot = Option.isSome(project) ? project.value.workspaceRoot : null;
+        const definition = yield* getAgentDefinition(projection.thread.agentId, projectRoot).pipe(
+          Effect.provideService(FileSystem.FileSystem, fileSystem),
+          Effect.provideService(Path.Path, path),
+        );
+        if (Option.isSome(definition)) {
+          agentInstructions = definition.value.instructions;
+        } else {
+          yield* Effect.logWarning("thread custom agent definition is no longer available", {
+            agentId: projection.thread.agentId,
+            threadId: projection.thread.id,
+          });
+        }
+      }
       const userText = projectComposerContextForProvider({
-        text: message.text,
+        text:
+          agentInstructions === undefined
+            ? message.text
+            : `Follow these custom agent instructions for this T3 thread:\n\n${agentInstructions}\n\n---\n\n${message.text}`,
         records: message.context?.records ?? [],
       });
-      // Delivered once: this run's provider turn marks the work as told. A
-      // restart continuation is prompted by its own text or resumes natively.
+      // A provider turn is the durable proof that the instructions were sent.
+      // If setup failed before that event (or the first attempt was cancelled
+      // before delivery), the next attempt sends them again. Native resumes and
+      // compaction already have a provider turn and do not repeat the preamble.
       const noteContinuation = isRestartNoteContinuation(
         run,
         projection.runs,
