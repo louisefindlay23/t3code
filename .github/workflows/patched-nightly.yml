@@ -49,8 +49,8 @@ jobs:
           fi
 
           # The environment filter and NAS update target are ported below because their old commits conflict upstream.
-          patch_commits="$(git log --reverse --format='%H' --grep='^patch:' "$PATCH_BASE_SHA..$WORKFLOW_SHA" \
-            | awk '$0 != "6611d52bdf24eb30ae3708f8fc7718334d1892d5" && $0 != "31a1311b2017ccb5e1b9a86735699b766069fa48"')"
+          patch_commits="$(git log --reverse --format='%H%x09%s' "$PATCH_BASE_SHA..$WORKFLOW_SHA" \
+            | awk -F '\t' '$2 ~ /^patch: [^[:space:]]/ && $1 != "6611d52bdf24eb30ae3708f8fc7718334d1892d5" && $1 != "31a1311b2017ccb5e1b9a86735699b766069fa48" { print $1 }')"
           if [[ -z "$patch_commits" ]]; then
             echo "No patch commits were found after $PATCH_BASE." >&2
             exit 1
