@@ -638,6 +638,23 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   const timeLabel = props.timeLabel;
 
   const visitThread = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
+  const markThreadUnread = useAtomCommand(threadEnvironment.markUnread, { reportFailure: false });
+  const canMarkUnread =
+    thread.lastVisitedAt !== undefined &&
+    thread.latestRun?.completedAt != null &&
+    !threadHasUnseenCompletion(thread);
+  const handleMarkUnread = useCallback(async () => {
+    const result = await markThreadUnread({
+      environmentId: thread.environmentId,
+      input: { threadId: thread.id },
+    });
+    if (result._tag === "Failure") {
+      Dialog.alert(
+        "Could not mark thread unread",
+        "The thread could not be marked unread. Try again.",
+      );
+    }
+  }, [markThreadUnread, thread.environmentId, thread.id]);
   const handleAcknowledgeWoke = useCallback(() => {
     if (props.wokeAt === null) return;
     void visitThread({
@@ -797,8 +814,11 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         supported: props.titleRegenerationSupported,
         isRegenerating: thread.titleRegeneration != null,
       }),
+      ...(canMarkUnread
+        ? [{ id: "mark-unread", title: "Mark unread", image: "envelope.badge" }]
+        : []),
     ],
-    [props.titleRegenerationSupported, thread.titleRegeneration],
+    [canMarkUnread, props.titleRegenerationSupported, thread.titleRegeneration],
   );
   const snoozableCardMenuActions = useMemo<MenuAction[]>(
     () => [
@@ -876,6 +896,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       if (nativeEvent.event === "archive") handleArchive();
       if (nativeEvent.event === "rename") handleRename();
       if (nativeEvent.event === "regenerate-title") handleRegenerateTitle();
+      if (nativeEvent.event === "mark-unread") void handleMarkUnread();
       if (nativeEvent.event === "copy-thread-id") {
         copyTextWithHaptic(thread.id, { target: "thread-id" });
       }
@@ -903,6 +924,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       thread,
       handleArchive,
       handleDelete,
+      handleMarkUnread,
       handleRegenerateTitle,
       handleRename,
       handleMoveDown,
