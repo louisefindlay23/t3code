@@ -38,6 +38,8 @@ export function threadRelationshipStatusLabel(status: string | null): string {
       return "Superseded";
     case "idle":
       return "Idle";
+    case "unavailable":
+      return "Unavailable";
     default:
       return "Unknown";
   }

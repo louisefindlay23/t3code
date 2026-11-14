@@ -1,5 +1,6 @@
 import { remapComposerContextAttachments } from "@t3tools/shared/composerContextReferences";
 import {
+  type AgentId,
   type ThreadLinkedPullRequest,
   CommandId,
   CheckpointId,
@@ -85,6 +86,7 @@ export interface CreateThreadInput extends CommandMetadata {
   readonly projectId: ProjectId;
   readonly title: string;
   readonly modelSelection: ModelSelection;
+  readonly agentId?: AgentId;
   readonly runtimeMode: RuntimeMode;
   readonly interactionMode: ProviderInteractionMode;
   readonly branch: string | null;
@@ -161,6 +163,9 @@ interface StartThreadBootstrap {
     readonly projectId: ProjectId;
     readonly title: string;
     readonly modelSelection: ModelSelection;
+    /** Omitted inherits the project default; null explicitly opts out. */
+    readonly agentId?: AgentId | null;
+    readonly modelSelectionExplicit?: boolean;
     readonly runtimeMode: RuntimeMode;
     readonly interactionMode: ProviderInteractionMode;
     readonly branch: string | null;
@@ -476,6 +481,7 @@ export const createThread = Effect.fn("EnvironmentCommands.createThread")(functi
     projectId: input.projectId,
     title: input.title,
     modelSelection: input.modelSelection,
+    ...(input.agentId === undefined ? {} : { agentId: input.agentId }),
     runtimeMode: input.runtimeMode,
     interactionMode: input.interactionMode,
     branch: input.branch,
@@ -789,6 +795,10 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
       title: input.titleSeed ?? thread.title,
       generateTitle: input.titleSeed !== undefined,
       modelSelection: input.modelSelection ?? thread.modelSelection,
+      ...(thread.agentId === undefined ? {} : { agentId: thread.agentId }),
+      ...(bootstrap?.modelSelectionExplicit === true || input.creationSource === "mobile"
+        ? { modelSelectionExplicit: true }
+        : {}),
       runtimeMode: input.runtimeMode,
       interactionMode: input.interactionMode,
       workspaceStrategy,
@@ -797,6 +807,9 @@ export const startThreadTurn = Effect.fn("EnvironmentCommands.startThreadTurn")(
         text: input.message.text,
         ...(context ? { context } : {}),
         attachments,
+        ...(input.sourceProposedPlan === undefined
+          ? {}
+          : { sourcePlanRef: input.sourceProposedPlan }),
       },
     });
   }
