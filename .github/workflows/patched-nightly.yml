@@ -48,13 +48,17 @@ jobs:
             exit 1
           fi
 
-          # The environment filter and NAS update target are ported below because their old commits conflict upstream.
+          # These changes are carried by portable-nightly-fixes.patch because their original commits conflict upstream.
           # Patch-only artifacts live in the fork workflow checkout and are applied separately below.
           patch_commits=""
           while IFS= read -r patch_commit; do
             [[ -z "$patch_commit" ]] && continue
             if [[ "$patch_commit" == "6611d52bdf24eb30ae3708f8fc7718334d1892d5" \
-              || "$patch_commit" == "31a1311b2017ccb5e1b9a86735699b766069fa48" ]]; then
+              || "$patch_commit" == "31a1311b2017ccb5e1b9a86735699b766069fa48" \
+              || "$patch_commit" == "78e8c7c9ddb7"* \
+              || "$patch_commit" == "69a119dc1b"* \
+              || "$patch_commit" == "01ef456545"* ]]; then
+              echo "Skipping $patch_commit; its behavior is carried by portable-nightly-fixes.patch."
               continue
             fi
             has_source_changes=false
@@ -148,7 +152,14 @@ jobs:
               echo "Selected upstream already handles both broken-worktree diagnostics; skipping the duplicate patch commit."
               continue
             fi
-            if [[ "$patch_commit" == "d7afd796203feea11e62d22c2925ca81c73fb4dd" ]]; then
+            if [[ "$patch_commit" == "c5826fef3d"* ]] \
+              && git grep -q 'gitfile does not point to a valid repository' -- apps/server/src/vcs/GitVcsDriverCore.ts \
+              && git grep -q 'isNonRepositoryGitStderr(result.stderr)' -- apps/server/src/storageCleanup.ts; then
+              echo "Selected upstream already handles both broken-worktree diagnostics; skipping the duplicate patch commit."
+              continue
+            fi
+            if [[ "$patch_commit" == "d7afd796203feea11e62d22c2925ca81c73fb4dd" \
+              || "$patch_commit" == "1bb59c3810"* ]]; then
               # Upstream rewrote this test file; keep its version while replaying the implementation.
               git cherry-pick -X ours "$patch_commit"
             else
