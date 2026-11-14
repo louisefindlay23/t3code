@@ -55,7 +55,7 @@ jobs:
             [[ -z "$patch_commit" ]] && continue
             if [[ "$patch_commit" == "6611d52bdf24eb30ae3708f8fc7718334d1892d5" \
               || "$patch_commit" == "31a1311b2017ccb5e1b9a86735699b766069fa48" \
-              || "$patch_commit" == "78e8c7c9ddb7"* \
+              || "$patch_commit" == "78e8c7c9ddb1"* \
               || "$patch_commit" == "69a119dc1b"* \
               || "$patch_commit" == "01ef456545"* ]]; then
               echo "Skipping $patch_commit; its behavior is carried by portable-nightly-fixes.patch."
