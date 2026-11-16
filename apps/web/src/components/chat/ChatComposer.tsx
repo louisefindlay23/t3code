@@ -194,6 +194,8 @@ import { readThreadShell } from "~/state/entities";
 import { useLinkedEnvironments } from "~/state/peerLinks";
 import { encodeComposerContextFragment } from "@t3tools/shared/composerContextClipboard";
 import type {
+  AgentId,
+  AgentSummary,
   ComposerContextRecord,
   OrchestrationV2Run,
   ThreadPullRequestLink,
@@ -339,6 +341,8 @@ export interface ChatComposerHandle {
     environmentContexts: EnvironmentContextRecord[];
     selectedPromptEffort: string | null;
     selectedModelSelection: ModelSelection;
+    selectedModelSelectionExplicit: boolean;
+    selectedAgentId?: AgentId | null;
     multipleModelSelections: ReadonlyArray<ModelSelection> | null;
     providerAvailable: boolean;
     selectedProvider: ProviderDriverKind;
@@ -445,6 +449,12 @@ export interface ChatComposerProps {
     readonly url: string | null;
   }> | null;
   onRemoveEditingQueuedAttachment: (attachmentId: string) => void;
+
+  agents?: ReadonlyArray<AgentSummary> | undefined;
+  selectedAgentId?: AgentId | null | undefined;
+  defaultAgentId?: AgentId | null | undefined;
+  onSelectAgent?: ((agentId: AgentId | null | undefined) => void) | undefined;
+  agentPickerDisabled?: boolean | undefined;
 
   onCompactContext: () => void;
   onSend: (
@@ -570,6 +580,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     onFileOpen,
     editingQueuedAttachments,
     onRemoveEditingQueuedAttachment,
+    agents,
+    selectedAgentId,
+    defaultAgentId,
+    onSelectAgent,
+    agentPickerDisabled = false,
   } = props;
   const {
     activePendingProgress: incomingPendingProgress,
@@ -2485,6 +2500,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       onModelPickerOpenChange={setIsComposerModelPickerOpen}
       modelPickerIconClassName={composerProviderState.modelPickerIconClassName}
       getModelDisabledReason={getModelDisabledReason}
+      agents={agents}
+      selectedAgentId={selectedAgentId}
+      defaultAgentId={defaultAgentId}
+      onSelectAgent={onSelectAgent}
+      agentPickerDisabled={agentPickerDisabled}
     />
   );
   // An open question owns the space above the composer. Only a machine problem,
@@ -3212,6 +3232,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         environmentContexts: composerEnvironmentContexts,
         selectedPromptEffort,
         selectedModelSelection,
+        selectedModelSelectionExplicit: composerDraft.modelSelectionExplicit === true,
+        ...(selectedAgentId === undefined ? {} : { selectedAgentId }),
         multipleModelSelections:
           routeKind === "draft" && multipleModelSelections !== null
             ? multipleModelSelections.map((selection) =>
@@ -3281,6 +3303,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       selectedInstanceId,
       reportedModelSelection,
       selectedModelSelection,
+      selectedAgentId,
+      composerDraft.modelSelectionExplicit,
       multipleModelSelections,
       setMultipleModelSelections,
       routeKind,

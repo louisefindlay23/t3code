@@ -5,9 +5,11 @@ import { useMemo, useSyncExternalStore } from "react";
 import { scopedProjectKey } from "../../lib/scopedEntities";
 import { useOlderSettledShelf, useOlderSettledShelfGrowth } from "../../state/olderSettledShelf";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
+import { useWorkspaceState } from "../../state/workspace";
 import {
   buildThreadListV2Items,
   buildThreadListV2ListItems,
+  filterThreadListV2ConnectedThreads,
   getThreadListV2OrderedSection,
   threadListInboxReturns,
   threadListV2LayoutTime,
@@ -67,9 +69,27 @@ export function useThreadListV2(input: {
   readonly selectedThreadKey: string | null;
 }) {
   const { threads, workingShelfEnabled } = input;
+  const { environments } = useWorkspaceState();
+  const connectedEnvironmentIds = useMemo(
+    () =>
+      new Set(
+        environments
+          .filter((environment) => environment.connectionState === "connected")
+          .map((environment) => environment.environmentId),
+      ),
+    [environments],
+  );
+  const visibleThreads = useMemo(
+    () => filterThreadListV2ConnectedThreads(threads, connectedEnvironmentIds),
+    [threads, connectedEnvironmentIds],
+  );
   const layoutTime = useMemo(
-    () => threadListV2LayoutTime({ threads, now: input.now, searchQuery: input.searchQuery }),
-    [threads, input.now, input.searchQuery],
+    () => threadListV2LayoutTime({
+      threads: visibleThreads,
+      now: input.now,
+      searchQuery: input.searchQuery,
+    }),
+    [visibleThreads, input.now, input.searchQuery],
   );
   // A thread can stop working when the threads change, or when its exit grace expires.
   const inboxVersion = useSyncExternalStore(
@@ -77,20 +97,20 @@ export function useThreadListV2(input: {
     threadListInboxReturns.getSnapshot,
   );
   const inbox = useMemo(
-    () => observeInbox(workingShelfEnabled ? threads : null, inboxVersion),
-    [threads, workingShelfEnabled, inboxVersion],
+    () => observeInbox(workingShelfEnabled ? visibleThreads : null, inboxVersion),
+    [visibleThreads, workingShelfEnabled, inboxVersion],
   );
   // Compute move availability per section; per-row planning is quadratic.
   const moveAvailability = useMemo(() => {
     const sectionAvailability = (section: "pinned" | "active") =>
       computeThreadMoveAvailability({
-        allThreads: threads,
+        allThreads: visibleThreads,
         section,
         pendingOrder: input.pendingOrder,
         reorderableEnvironmentIds:
           section === "pinned" ? input.pinReorderEnvironmentIds : input.activeReorderEnvironmentIds,
         ordered: getThreadListV2OrderedSection({
-          threads,
+          threads: visibleThreads,
           section,
           pendingOrder: input.pendingOrder,
           now: layoutTime,
@@ -104,7 +124,7 @@ export function useThreadListV2(input: {
       ...(workingShelfEnabled ? [] : sectionAvailability("active")),
     ]);
   }, [
-    threads,
+    visibleThreads,
     input.pendingOrder,
     input.pinReorderEnvironmentIds,
     input.activeReorderEnvironmentIds,
@@ -135,7 +155,7 @@ export function useThreadListV2(input: {
     () =>
       buildThreadListV2Items({
         pendingOrder: input.pendingOrder,
-        threads: threads.filter((thread) => thread.archivedAt === null),
+        threads: visibleThreads.filter((thread) => thread.archivedAt === null),
         environmentId: input.environmentId,
         projectRefs: input.projectRefs,
         searchQuery: input.searchQuery,
@@ -154,7 +174,7 @@ export function useThreadListV2(input: {
         selectedThreadKey: input.selectedThreadKey,
         isListedSettled: isListed,
         unloadedSettledCount: unloadedCount(
-          threads.filter(
+          visibleThreads.filter(
             (thread) =>
               thread.archivedAt === null &&
               scopes.some(
@@ -167,7 +187,7 @@ export function useThreadListV2(input: {
       }),
     [
       input.pendingOrder,
-      threads,
+      visibleThreads,
       input.environmentId,
       input.projectRefs,
       input.searchQuery,
