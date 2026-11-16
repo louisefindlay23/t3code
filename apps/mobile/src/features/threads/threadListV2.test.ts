@@ -1881,3 +1881,42 @@ describe("queued messages keep a settled thread active", () => {
     expect(layout.settledCount).toBe(1);
   });
 });
+
+describe("Sort inbox by last message", () => {
+  const sent = (id: string, activeOrderKey: string, latestUserAuthoredMessageAt: string) =>
+    makeThread({
+      id: ThreadId.make(id),
+      title: id,
+      activeOrderKey,
+      createdAt: "2026-06-01T00:00:00.000Z",
+      latestUserAuthoredMessageAt,
+    });
+  const threads = [
+    sent("saved-first", "f", "2026-06-01T01:00:00.000Z"),
+    sent("saved-last", "t", "2026-06-01T03:00:00.000Z"),
+  ];
+  const ids = (input: Partial<Parameters<typeof buildThreadListV2Items>[0]>) =>
+    buildThreadListV2Items({
+      threads,
+      environmentId: null,
+      searchQuery: "",
+      now: NOW,
+      ...input,
+    }).items.map((item) => item.thread.id);
+
+  it("orders active threads by your last message and restores the saved order when off", () => {
+    expect(ids({ inboxSortBySendEnabled: true })).toEqual(["saved-last", "saved-first"]);
+    expect(ids({})).toEqual(["saved-first", "saved-last"]);
+  });
+
+  it("keeps your send order when another thread comes back from the Working section", () => {
+    expect(
+      ids({
+        inboxSortBySendEnabled: true,
+        workingShelfEnabled: true,
+        inboxReturnAt: (thread) =>
+          thread.id === "saved-first" ? Date.parse("2026-06-01T04:00:00.000Z") : undefined,
+      }),
+    ).toEqual(["saved-last", "saved-first"]);
+  });
+});

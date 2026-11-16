@@ -199,6 +199,8 @@ export function WorkingSectionSettings() {
   const preferences = useAtomValue(mobilePreferencesAtom);
   const workingShelfEnabled =
     AsyncResult.isSuccess(preferences) && preferences.value.workingShelfEnabled !== false;
+  const inboxSortBySendEnabled =
+    AsyncResult.isSuccess(preferences) && preferences.value.inboxSortBySendEnabled === true;
 
   return (
     <View className="gap-3">
@@ -209,11 +211,18 @@ export function WorkingSectionSettings() {
           value={workingShelfEnabled}
           onValueChange={(value) => savePreferences({ workingShelfEnabled: value })}
         />
+        <SettingsSwitchRow
+          icon="text.bubble"
+          label="Sort inbox by last message"
+          value={inboxSortBySendEnabled}
+          onValueChange={(value) => savePreferences({ inboxSortBySendEnabled: value })}
+        />
       </SettingsSection>
       <Text className="px-2 text-sm text-foreground-muted">
         Fold working and monitoring threads into a Working section. They return to the top of the
-        list when they need you. While this is on, active threads are ordered by time and cannot be
-        moved.
+        list when they need you. Sort inbox by last message orders active threads by the last
+        message you sent; agent activity does not move them. While either is on, active threads
+        cannot be moved.
       </Text>
     </View>
   );

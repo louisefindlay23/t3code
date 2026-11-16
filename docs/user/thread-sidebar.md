@@ -148,6 +148,14 @@ choice.
 While this is on, the active list is ordered by when each thread last came back to you, so you
 cannot drag or move threads within it. Your saved order returns when you turn it off.
 
+### Sort the inbox by your last message (mobile)
+
+On iOS and Android, turn on **Settings → General → Sort inbox by last message** to order the
+active list by the last message you sent, newest first, instead of your saved order. Agent
+activity does not move a thread, including when it comes back from the Working section. You
+cannot move threads within the active list while this is on. Your saved order returns when you
+turn it off. Each device keeps its own choice.
+
 ### Group threads by project (beta)
 
 Turn on **Settings → Labs → Boring sidebar (group by project)** on web and desktop to put active

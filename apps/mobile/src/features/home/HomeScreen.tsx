@@ -385,6 +385,7 @@ export function HomeScreen(props: HomeScreenProps) {
     settledShelfExpanded,
     snoozedShelfExpanded,
     workingShelfEnabled,
+    inboxSortBySendEnabled,
     workingShelfExpanded,
     toggleSettledShelf,
     toggleSnoozedShelf,
@@ -428,6 +429,7 @@ export function HomeScreen(props: HomeScreenProps) {
     pendingOrder,
     shelfPreferencesLoaded,
     workingShelfEnabled,
+    inboxSortBySendEnabled,
     workingShelfExpanded,
     snoozedShelfExpanded,
     settledShelfExpanded,
@@ -573,7 +575,9 @@ export function HomeScreen(props: HomeScreenProps) {
         reorderSupported={
           item.item.pinned
             ? pinReorderEnvironmentIds.has(thread.environmentId)
-            : !workingShelfEnabled && activeReorderEnvironmentIds.has(thread.environmentId)
+            : !workingShelfEnabled &&
+              !inboxSortBySendEnabled &&
+              activeReorderEnvironmentIds.has(thread.environmentId)
         }
         canMoveUp={item.canMoveUp}
         canMoveDown={item.canMoveDown}
@@ -604,6 +608,7 @@ export function HomeScreen(props: HomeScreenProps) {
     selectedThreadKey,
     threadSearchMatchByKey,
     workingShelfEnabled,
+    inboxSortBySendEnabled,
   };
 
   const hasAnyThreads =

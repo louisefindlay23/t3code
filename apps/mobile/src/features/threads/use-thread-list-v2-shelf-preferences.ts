@@ -12,6 +12,7 @@ export function useThreadListV2ShelfPreferences() {
   const settledShelfExpanded =
     loaded && preferencesResult.value.threadListSettledShelfExpanded === true;
   const workingShelfEnabled = loaded && preferencesResult.value.workingShelfEnabled !== false;
+  const inboxSortBySendEnabled = loaded && preferencesResult.value.inboxSortBySendEnabled === true;
   const workingShelfExpanded =
     loaded && preferencesResult.value.threadListWorkingShelfExpanded === true;
 
@@ -46,6 +47,7 @@ export function useThreadListV2ShelfPreferences() {
     settledShelfExpanded,
     snoozedShelfExpanded,
     workingShelfEnabled,
+    inboxSortBySendEnabled,
     workingShelfExpanded,
     toggleSettledShelf,
     toggleSnoozedShelf,

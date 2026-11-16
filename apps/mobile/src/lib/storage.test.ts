@@ -118,6 +118,11 @@ describe("mobile connection storage", () => {
     });
   });
 
+  it("keeps the inbox sort choice across a reload", async () => {
+    await savePreferencesPatch({ inboxSortBySendEnabled: true });
+    await expect(loadPreferences()).resolves.toEqual({ inboxSortBySendEnabled: true });
+  });
+
   it("ignores invalid tab-order entries without dropping other saved preferences", async () => {
     mocks.setPreferencesJson(
       JSON.stringify({

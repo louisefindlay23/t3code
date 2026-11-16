@@ -358,6 +358,23 @@ function sortThreadsForListV2<
   return sortActiveThreadsByOrderKey(threads);
 }
 
+/**
+ * The active list orders itself while either setting is on, and the send order wins,
+ * as it does for web's folders. Returns null when the saved order applies.
+ */
+export function sortTimeOrderedActiveThreads<T extends EnvironmentThreadShell>(
+  threads: readonly T[],
+  input: {
+    readonly workingShelfEnabled: boolean;
+    readonly inboxSortBySendEnabled: boolean;
+    readonly inboxReturnAt?: ((thread: T) => number | undefined) | undefined;
+  },
+): T[] | null {
+  if (input.inboxSortBySendEnabled) return sortWorkingThreadsBySend(threads);
+  if (input.workingShelfEnabled) return sortInboxThreadsByReturn(threads, input.inboxReturnAt);
+  return null;
+}
+
 export function getThreadListV2OrderedSection(input: {
   readonly threads: readonly EnvironmentThreadShell[];
   readonly section: "pinned" | "active";
@@ -709,6 +726,7 @@ export function buildThreadListV2Items(input: {
   readonly settledLimit?: number;
   readonly now: string;
   readonly workingShelfEnabled?: boolean;
+  readonly inboxSortBySendEnabled?: boolean;
   readonly workingShelfExpanded?: boolean;
   readonly isWorking?: (thread: EnvironmentThreadShell) => boolean;
   readonly inboxReturnAt?: (thread: EnvironmentThreadShell) => number | undefined;
@@ -844,9 +862,12 @@ export function buildThreadListV2Items(input: {
     };
   }
 
-  const orderedActive = workingShelfEnabled
-    ? sortInboxThreadsByReturn(active, input.inboxReturnAt)
-    : applyPendingThreadOrder(sortThreadsForListV2(active), "active", pending);
+  const orderedActive =
+    sortTimeOrderedActiveThreads(active, {
+      workingShelfEnabled,
+      inboxSortBySendEnabled: input.inboxSortBySendEnabled === true,
+      inboxReturnAt: input.inboxReturnAt,
+    }) ?? applyPendingThreadOrder(sortThreadsForListV2(active), "active", pending);
   const orderedWorking = sortWorkingThreadsBySend(working);
   const orderedSnoozed = [...snoozed].sort(
     (left, right) =>

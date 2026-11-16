@@ -56,6 +56,7 @@ it("reuses a large thread list across tab renders and updates when its inputs ch
     pendingOrder: null,
     shelfPreferencesLoaded: true,
     workingShelfEnabled: true,
+    inboxSortBySendEnabled: false,
     workingShelfExpanded: false,
     snoozedShelfExpanded: false,
     settledShelfExpanded: true,
