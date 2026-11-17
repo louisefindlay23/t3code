@@ -17,6 +17,20 @@ export interface VersionMismatch {
   readonly hint: string;
 }
 
+export function resolveServerUpdateTargetVersion(
+  configuredVersion: string | undefined,
+  fallbackVersion: string,
+): string {
+  return configuredVersion?.trim() || fallbackVersion;
+}
+
+export function getServerUpdateTargetVersion(fallbackVersion: string = APP_VERSION): string {
+  return resolveServerUpdateTargetVersion(
+    import.meta.env.T3CODE_SERVER_UPDATE_VERSION,
+    fallbackVersion,
+  );
+}
+
 const VERSION_MISMATCH_DISMISSALS_STORAGE_KEY = "t3code:version-mismatch-dismissals:v1";
 
 const dismissedServerUpdateFailures = new WeakSet<ServerUpdateState>();
@@ -80,7 +94,10 @@ export function resolveVersionMismatch(
 export function resolveServerConfigVersionMismatch(
   serverConfig: Pick<ServerConfig, "environment"> | null | undefined,
 ): VersionMismatch | null {
-  return resolveVersionMismatch(serverConfig?.environment.serverVersion);
+  return resolveVersionMismatch(
+    serverConfig?.environment.serverVersion,
+    getServerUpdateTargetVersion(),
+  );
 }
 
 export function resolveServerSelfUpdateCapability(
