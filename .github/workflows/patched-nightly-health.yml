@@ -18,6 +18,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       FORK: ${{ github.repository }}
+      FIX_WEBHOOK_URL: ${{ secrets.NIGHTLY_FIX_WEBHOOK_URL }}
     steps:
       - name: Check latest run, release and upstream cadence
         shell: bash
@@ -66,6 +67,12 @@ jobs:
             summary ""
             summary "### Problems"
             for p in "${problems[@]}"; do summary "- $p"; echo "::error::$p"; done
+            # Starts the fix-forward agent; without the secret the failed run alone is the alert.
+            if [[ -n "${FIX_WEBHOOK_URL:-}" ]]; then
+              jq -n --arg run "$run_id" --arg problems "$(printf '%s; ' "${problems[@]}")" '{run_id: $run, problems: $problems}' \
+                | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$FIX_WEBHOOK_URL" >/dev/null \
+                || echo "::warning::could not reach the fix-forward webhook"
+            fi
             exit 1
           fi
           summary ""
