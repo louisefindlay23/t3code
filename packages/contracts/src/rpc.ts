@@ -84,6 +84,7 @@ import {
   AuthAccessStreamEvent,
   EnvironmentAuthorizationError,
 } from "./auth.ts";
+import { PushDeviceRegistration, PushDeviceUnregistration } from "./pushNotifications.ts";
 import { ClientActivityReportInput } from "./background.ts";
 import {
   FilesystemGetMetadataInput,
@@ -262,6 +263,7 @@ import {
   OrchestrationV2RpcSchemas,
   OrchestrationV2ThreadLaunchError,
 } from "./orchestrationV2.ts";
+import { AgentListError, AgentListInput, AgentSummary } from "./agentDefinition.ts";
 import {
   ProjectCreateNewInput,
   ProjectCreateNewResult,
@@ -441,6 +443,7 @@ import { VcsError } from "./vcs.ts";
 import { Project, ProjectMutation, ProjectMutationError } from "./project.ts";
 
 export const WS_METHODS = {
+  agentsList: "agents.list",
   projectsListEntries: "projects.listEntries",
   projectsListIgnoredFiles: "projects.listIgnoredFiles",
   projectsReadFile: "projects.readFile",
@@ -588,6 +591,9 @@ export const WS_METHODS = {
   guestShareCreate: "guestShare.create",
   scheduledTasksListWebhookDeliveries: "scheduledTasks.listWebhookDeliveries",
   scheduledTasksGetWebhookDelivery: "scheduledTasks.getWebhookDelivery",
+
+  notificationsRegisterDevice: "notifications.registerDevice",
+  notificationsUnregisterDevice: "notifications.unregisterDevice",
 
   cloudGetRelayClientStatus: "cloud.getRelayClientStatus",
   cloudInstallRelayClient: "cloud.installRelayClient",
@@ -1095,6 +1101,16 @@ const WsCloudInstallRelayClientRpc = Rpc.make(WS_METHODS.cloudInstallRelayClient
   stream: true,
 });
 
+const WsNotificationsRegisterDeviceRpc = Rpc.make(WS_METHODS.notificationsRegisterDevice, {
+  payload: PushDeviceRegistration,
+  error: EnvironmentAuthorizationError,
+});
+
+const WsNotificationsUnregisterDeviceRpc = Rpc.make(WS_METHODS.notificationsUnregisterDevice, {
+  payload: PushDeviceUnregistration,
+  error: EnvironmentAuthorizationError,
+});
+
 const WsServerReportClientActivityRpc = Rpc.make(WS_METHODS.serverReportClientActivity, {
   payload: ClientActivityReportInput,
   error: EnvironmentAuthorizationError,
@@ -1538,6 +1554,11 @@ const WsProjectsListIgnoredFilesRpc = Rpc.make(WS_METHODS.projectsListIgnoredFil
   payload: ProjectListIgnoredFilesInput,
   success: ProjectListIgnoredFilesResult,
   error: Schema.Union([ProjectListEntriesError, EnvironmentAuthorizationError]),
+});
+const WsAgentsListRpc = Rpc.make(WS_METHODS.agentsList, {
+  payload: AgentListInput,
+  success: Schema.Array(AgentSummary),
+  error: Schema.Union([AgentListError, EnvironmentAuthorizationError]),
 });
 
 const WsProjectsReadFileRpc = Rpc.make(WS_METHODS.projectsReadFile, {
@@ -2339,6 +2360,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsSecretsAnswerRequestRpc,
   WsScheduledTasksListWebhookDeliveriesRpc,
   WsScheduledTasksGetWebhookDeliveryRpc,
+  WsNotificationsRegisterDeviceRpc,
+  WsNotificationsUnregisterDeviceRpc,
   WsServerReportClientActivityRpc,
   WsCloudGetRelayClientStatusRpc,
   WsCloudInstallRelayClientRpc,
@@ -2392,6 +2415,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsSubscribeProjectClonesRpc,
   WsProjectsListEntriesRpc,
   WsProjectsListIgnoredFilesRpc,
+  WsAgentsListRpc,
   WsProjectsReadFileRpc,
   WsProjectsSearchContentsRpc,
   WsProjectsSearchEntriesRpc,
