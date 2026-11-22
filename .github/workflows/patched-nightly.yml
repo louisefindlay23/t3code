@@ -151,6 +151,13 @@ jobs:
           ### Server
           - Allow named T3 delegate_task targets according to each lead agent's allowlist.
 
+          <details>
+          <summary>Full changelog</summary>
+
+          https://github.com/pingdotgg/t3code/releases/tag/$source_tag
+
+          </details>
+
           ---
           Source nightly: $source_tag
           Fork commit: $fork_sha
