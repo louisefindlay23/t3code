@@ -778,9 +778,9 @@ jobs:
       - name: Archive, export and upload to TestFlight
         working-directory: apps/mobile/ios
         env:
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.ASC_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.ASC_API_ISSUER }}
         run: |
           set -euo pipefail
           for name in APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER; do
