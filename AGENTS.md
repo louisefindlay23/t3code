@@ -108,6 +108,7 @@ See [00_development.md](docs/operations/00_development.md) for setup, ports, see
 ## Pull requests
 
 - Fork fixes that change application behavior or improve a feature carried in the patched-nightly build always get a PR in `louisefindlay23/t3code`; do not leave this work only on a local branch or wait for a separate PR request. Keep these contributions fork-only unless Louise explicitly asks for an upstream PR.
+- This checkout has `gh repo set-default louisefindlay23/t3code` set, and T3 Code's PR tools read it. Without it they rank `upstream` over `origin` and target `pingdotgg/t3code`, where the fork's token gets a 403. For an upstream PR, run `gh pr create --repo pingdotgg/t3code` explicitly instead of the T3 PR tools. A fresh clone needs the default set once.
 - Run the relevant build for the exact patched source before opening the PR. After the PR is merged, trigger the matching build or release workflow and verify its result and published artifacts. Merge only after required checks and reviews pass, and only when Louise has asked to ship the change.
 - `origin` is not always GitHub. Check `git remote get-url origin` before your first forge command and use that forge's CLI and skill. See [Forge mirror](docs/operations/00_development.md#forge-mirror-optional).
 - Conventional commit titles, plain language: `fix(web): new threads no longer spike CPU`.
