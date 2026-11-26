@@ -14,6 +14,7 @@ import { compareSemverVersions } from "@t3tools/shared/semver";
 import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "~/i18n/messages";
+import { getDesktopUpdateReleaseUrl } from "../desktopUpdate.logic";
 import {
   resolveServerSelfUpdateCapability,
   resolveVersionMismatch,
@@ -914,6 +915,7 @@ export function describeUpdateEverything(
 ): {
   readonly summary: string;
   readonly version: string | null;
+  readonly releaseUrl: string | null;
   readonly providerCount: number;
   readonly rows: ReadonlyArray<UpdateEverythingRow>;
 } {
@@ -967,12 +969,15 @@ export function describeUpdateEverything(
     update(machine.environmentId, machine.label, { skipped: machine.reason });
   }
 
+  const version =
+    plan.localVersion ??
+    plan.servers.find((server) => server.selfUpdate !== "desktop-managed")?.targetVersion ??
+    null;
   return {
     summary,
-    version:
-      plan.localVersion ??
-      plan.servers.find((server) => server.selfUpdate !== "desktop-managed")?.targetVersion ??
-      null,
+    version,
+    // Fork servers install from the same release repository as the app.
+    releaseUrl: getDesktopUpdateReleaseUrl(version),
     providerCount,
     rows: Array.from(rows.values()),
   };

@@ -44,6 +44,7 @@ interface UpdateEverythingDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly version: string | null;
+  readonly releaseUrl?: string | null;
   readonly providerCount: number;
   readonly rows: ReadonlyArray<UpdateEverythingRow>;
   readonly restarts: ReadonlyArray<RestartingMachine>;
@@ -95,6 +96,7 @@ const APP_LABELS = {
 
 function UpdateEverythingDialogContent({
   version,
+  releaseUrl,
   providerCount,
   rows,
   restarts,
@@ -142,7 +144,19 @@ function UpdateEverythingDialogContent({
         <AlertDialogDescription>
           {version !== null ? (
             <>
-              T3 Code <span className="font-mono text-xs">{version}</span>
+              T3 Code{" "}
+              {releaseUrl ? (
+                <a
+                  href={releaseUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-xs underline-offset-2 hover:underline"
+                >
+                  {version}
+                </a>
+              ) : (
+                <span className="font-mono text-xs">{version}</span>
+              )}
             </>
           ) : null}
           {version !== null && providerCount > 0 ? " · " : null}
