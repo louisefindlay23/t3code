@@ -560,4 +560,18 @@ describe("resolveRestoredRetry", () => {
     ).toBe("current");
     expect(resolveRestoredRetry(restored("remote"), [])).toBeNull();
   });
+
+  it("links the version to its release notes", () => {
+    const base = { localMachines: [], servers: [], providerMachines: [], skipped: [] };
+    const server = {
+      environmentId: EnvironmentId.make("npm"),
+      serverLabel: "bb-1",
+      selfUpdate: "respawn" as const,
+      targetVersion: "1.1.0",
+    };
+    expect(
+      describeUpdateEverything({ ...base, localVersion: null, servers: [server] }).releaseUrl,
+    ).toBe("https://github.com/pingdotgg/t3code/releases/tag/v1.1.0");
+    expect(describeUpdateEverything({ ...base, localVersion: null }).releaseUrl).toBeNull();
+  });
 });
