@@ -5329,7 +5329,9 @@ describe("OrchestratorMcpService provider resolution", () => {
             },
           ]),
           adapterRegistryLayer([agentId]),
-          Layer.mock(ProjectService.ProjectService)({ getById: () => Effect.succeedNone }),
+          Layer.mock(ProjectService.ProjectService)({
+            getById: (id) => Effect.succeedSome({ id, workspaceRoot: process.cwd() } as never),
+          }),
           Layer.mock(SecretRequests.SecretRequests)({}),
           Layer.mock(RemoteDelegation.RemoteDelegation)({}),
           Layer.mock(ScheduledTaskService.ScheduledTaskService)({}),
