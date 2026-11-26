@@ -16,8 +16,12 @@ function buildNotes(base) {
     .split("\n")
     .filter(Boolean)
     .map((subject) => `• ${subject.replace(/^patch: /, "").replace(/ \(#\d+\)$/, "")}`);
-  const body = subjects.length > 0 ? subjects.join("\n") : "Native dependency refresh; no app changes.";
-  return `${base ? "Changes since the last TestFlight build:" : "Recent changes:"}\n${body}`.slice(0, MAX_LENGTH);
+  const body =
+    subjects.length > 0 ? subjects.join("\n") : "Native dependency refresh; no app changes.";
+  return `${base ? "Changes since the last TestFlight build:" : "Recent changes:"}\n${body}`.slice(
+    0,
+    MAX_LENGTH,
+  );
 }
 
 function jwt({ keyId, issuer, key }) {
@@ -55,9 +59,8 @@ async function main() {
 
   // The build only appears once Apple has processed the upload.
   for (let attempt = 0; attempt < 60; attempt += 1) {
-    const [build] = (
-      await api(`/v1/builds?filter[app]=${app.id}&filter[version]=${BUILD_NUMBER}`)
-    ).data;
+    const [build] = (await api(`/v1/builds?filter[app]=${app.id}&filter[version]=${BUILD_NUMBER}`))
+      .data;
     if (build) {
       await api("/v1/betaBuildLocalizations", {
         method: "POST",
