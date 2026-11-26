@@ -11,6 +11,8 @@ export type ThreadActionMenuId =
   | "turn-into-project"
   | "move-project"
   | `move-project:${string}`
+  | "move"
+  | `move:${string}`
   | "project-settings"
   | "pin"
   | "unpin"
@@ -132,6 +134,8 @@ export interface ThreadActionMenuState {
   /** Other projects in this environment. The server only moves idle top-level threads. */
   readonly moveProjectTargets?: ReadonlyArray<{ readonly id: string; readonly label: string }>;
   readonly canMoveProject?: boolean;
+  /** Other connected machines the thread can move to; the item is left out when empty. */
+  readonly moveTargets?: ReadonlyArray<{ readonly environmentId: string; readonly label: string }>;
 }
 
 /** Local navigation, read markers, and copying remain available to read-only clients. */
@@ -274,6 +278,23 @@ export function buildThreadActionMenuItems(
             disabled: state.isRunning || !state.canMoveProject,
             children: state.moveProjectTargets.map((target) => ({
               id: `${MOVE_PROJECT_PREFIX}${target.id}` as const,
+              label: target.label,
+            })),
+          },
+        ]
+      : []),
+    ...(state.moveTargets && state.moveTargets.length > 0
+      ? [
+          {
+            id: "move" as const,
+            label: resolve(
+              msg("Move to…", { $context: "submenu of machines to move the thread to" }),
+            ),
+            icon: "arrow-right-left",
+            // Export refuses a running thread, same as archive.
+            disabled: state.isRunning,
+            children: state.moveTargets.map((target) => ({
+              id: `move:${target.environmentId}` as const,
               label: target.label,
             })),
           },
