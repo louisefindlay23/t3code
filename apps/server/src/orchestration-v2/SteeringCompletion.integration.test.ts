@@ -4547,6 +4547,7 @@ it.effect("an agent's auto send steers past its own explicitly queued message", 
       Effect.provide(
         ThreadManagementService.layer.pipe(
           Layer.provideMerge(layer),
+          Layer.provide(Layer.mock(ProjectService.ProjectService)({})),
           Layer.provide(ServerSettings.layerTest()),
           Layer.provide(
             CommandReceiptStore.layer.pipe(Layer.provide(SqlitePersistence.layerMemory)),
