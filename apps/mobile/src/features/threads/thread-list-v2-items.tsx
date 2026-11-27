@@ -1127,21 +1127,28 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   const menuActions = useMemo<MenuAction[]>(() => {
     const nested = Platform.OS === "ios";
     const localized = (action: MenuAction): MenuAction => ({ ...action, title: m(action.title) });
+    const newBranchItems: MenuAction[] = thread.branch
+      ? [
+          {
+            id: "new-thread-on-branch",
+            title: getThreadListV2NewBranchMenuTitle(thread.branch, m),
+            image: "square.and.pencil",
+          },
+        ]
+      : [];
+    const mainTitleItems = titleMenuItems.filter(
+      (action) => action.id === "rename" || action.id === "move-project",
+    );
+    const moreTitleItems = titleMenuItems.filter(
+      (action) => action.id !== "rename" && action.id !== "move-project",
+    );
     const direct: MenuAction[] = [
-      ...(thread.branch
-        ? [
-            {
-              id: "new-thread-on-branch",
-              title: getThreadListV2NewBranchMenuTitle(thread.branch, m),
-              image: "square.and.pencil",
-            },
-          ]
-        : []),
-      { id: "copy-thread", title: gt("Copy thread"), image: "text.bubble" },
-      { id: "copy-thread-id", title: gt("Copy thread ID"), image: "doc.on.doc" },
+      ...mainTitleItems,
       ...(thread.latestRun?.completedAt != null && threadCanArchive(thread.runtime)
         ? [{ id: "mark-unread", title: gt("Mark unread"), image: "envelope.badge" }]
         : []),
+      { id: "copy-thread", title: gt("Copy thread"), image: "text.bubble" },
+      { id: "copy-thread-id", title: gt("Copy thread ID"), image: "doc.on.doc" },
       ...(canShareWithGuest
         ? [{ id: "share-guest", title: gt("Share with guest"), image: "person.badge.plus" }]
         : []),
@@ -1154,7 +1161,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           reorder: [],
           pin: [],
           secondary: [
-            ...titleMenuItems,
+            ...newBranchItems,
+            ...moreTitleItems,
             ...autoSettleMenuItems,
             localized(LEGACY_MENU_ACTIONS[0]!),
             localized(SNOOZED_MENU_ACTIONS[1]!),
@@ -1170,7 +1178,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           direct: [...direct, localized(LEGACY_MENU_ACTIONS[0]!)],
           reorder: reorderMenuItems,
           pin: pinMenuItems,
-          secondary: [...titleMenuItems, localized(LEGACY_MENU_ACTIONS[1]!)],
+          secondary: [...newBranchItems, ...moreTitleItems, localized(LEGACY_MENU_ACTIONS[1]!)],
         },
         m,
       );
@@ -1185,7 +1193,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           ),
           pin: pinMenuItems,
           secondary: [
-            ...titleMenuItems,
+            ...newBranchItems,
+            ...moreTitleItems,
             ...autoSettleMenuItems,
             localized(LEGACY_MENU_ACTIONS[0]!),
             localized(SLIM_MENU_ACTIONS[1]!),
@@ -1197,9 +1206,11 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     return layoutThreadListV2RowMenuActions(
       {
         nested,
-        direct: [
-          ...direct,
-          localized(CARD_MENU_ACTIONS[0]!),
+        direct: [...direct, localized(CARD_MENU_ACTIONS[0]!)],
+        reorder: reorderMenuItems,
+        pin: pinMenuItems,
+        secondary: [
+          ...newBranchItems,
           ...(swipeActions.secondary === "snooze"
             ? [
                 {
@@ -1210,11 +1221,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
                 },
               ]
             : []),
-        ],
-        reorder: reorderMenuItems,
-        pin: pinMenuItems,
-        secondary: [
-          ...titleMenuItems,
+          ...moreTitleItems,
           ...autoSettleMenuItems,
           localized(LEGACY_MENU_ACTIONS[0]!),
           localized(CARD_MENU_ACTIONS[1]!),
