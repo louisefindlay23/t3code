@@ -130,6 +130,7 @@ jobs:
           upstream_notes="$(gh api "repos/pingdotgg/t3code/releases/tags/$source_tag" --jq '.body // empty' \
             | awk '/^<details>/ {exit} {print}' \
             | grep -v -E '^\*\*v|^#+ Plus [0-9]+ more' || true)"
+          fork_notes="$(node .github/scripts/fork-release-notes.cjs "$source_sha" "$fork_sha")"
           cat > "$RUNNER_TEMP/release-notes.md" <<EOF
           ## Upstream improvements
 
@@ -137,19 +138,7 @@ jobs:
 
           ## Fork changes
 
-          ### Mobile
-          - Show Mark unread in the mobile thread hold menu instead of under More.
-          - Keep mobile thread rows on three lines: project, title, then branch and machine.
-
-          ### Desktop
-          - Add named workspace agents, a Composer picker, a project default agent, and per-launch model or reasoning/economy tier selection.
-          - Hide settled or confirmed deleted child threads in Lineage; mark offline linked-environment children unavailable.
-          - Render Codex memory citations as readable references.
-          - Hide threads from disconnected environments and restore them on reconnect.
-          - Order active threads by the latest message or run activity.
-
-          ### Server
-          - Allow named T3 delegate_task targets according to each lead agent's allowlist.
+          $fork_notes
 
           <details>
           <summary>Full changelog</summary>
