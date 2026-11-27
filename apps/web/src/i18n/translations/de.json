@@ -13106,13 +13106,11 @@
   "faa3bb26abb39c93": "Review-Leitfaden fehlgeschlagen",
   "b7df38b7d8792d78": "Leitfaden öffnen",
   "9e91e9a77b664e4e": "Review-Leitfaden konnte nicht gestartet werden",
-<<<<<<< HEAD
   "1e2835c9878b9bab": "Projekt hinzufügen…",
   "2b58435dac7b49ac": "Thread nicht verschoben",
   "13cde8ccf0b735c9": "Verschiebe ihn in das neue Projekt, sobald das Projekt bereit ist.",
   "7bbe4d815b395d6f": "Thread wird verschoben, sobald er bereit ist",
-  "9b813bb618d8ec11": "Er wird in das neue Projekt verschoben, sobald der Klon fertig ist."
-=======
+  "9b813bb618d8ec11": "Er wird in das neue Projekt verschoben, sobald der Klon fertig ist.",
   "99d51127f573296b": "Weiteres Konto",
   "8ec2c57414669b79": "Verbinde einen zweiten {tracker}-Workspace oder -Nutzer.",
   "99963c0142e17f00": "Für das neue {tracker}-Konto.",
@@ -13285,5 +13283,4 @@
   "0d50b5bfe7151ece": "Datei konnte nicht heruntergeladen werden",
   "eb1fd384ad5919dd": "Interne Notiz",
   "b45f0b467e9406d0": "Dem Kunden antworten"
->>>>>>> v0.1.14-nightly.20261127.5359
 }

@@ -101,6 +101,7 @@ import {
 import { QueuedMessageIcon } from "./queued-message-icon";
 import { shouldRecedeThreadRow } from "./thread-row-emphasis";
 import { ThreadSearchMatchExcerpt } from "./thread-search-match";
+import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import { pullRequestStatus } from "../pull-requests/pullRequestStatus";
@@ -805,6 +806,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   readonly simultaneousSwipeGesture?: ComponentProps<typeof ThreadSwipeable>["simultaneousWith"];
 }) {
   const { width: windowWidth, fontScale } = useWindowDimensions();
+  const { monoFontFamily } = useAppearancePreferences();
   const titleTypography = useScaledTextRole("body");
   const metadataTypography = useScaledTextRole("label");
   const projectIconSize = titleTypography.fontSize * 1.25 * fontScale;
@@ -1597,7 +1599,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
               numberOfLines={1}
             >
               {thread.branch ? (
-                <Text style={{ fontFamily: MONO_FONT }}>{thread.branch}</Text>
+                <Text style={{ fontFamily: monoFontFamily }}>{thread.branch}</Text>
               ) : null}
               {thread.branch && props.environmentLabel ? "  ·  " : null}
               {props.environmentLabel ? (

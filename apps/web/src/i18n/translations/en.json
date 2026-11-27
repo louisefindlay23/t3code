@@ -13114,13 +13114,11 @@
   "faa3bb26abb39c93": "Review guide failed",
   "b7df38b7d8792d78": "Open guide",
   "9e91e9a77b664e4e": "Could not start a review guide",
-<<<<<<< HEAD
   "1e2835c9878b9bab": "Add project…",
   "2b58435dac7b49ac": "Thread not moved",
   "13cde8ccf0b735c9": "Move it to the new project once the project is ready.",
   "7bbe4d815b395d6f": "Thread will move when ready",
-  "9b813bb618d8ec11": "It moves to the new project once the clone finishes."
-=======
+  "9b813bb618d8ec11": "It moves to the new project once the clone finishes.",
   "99d51127f573296b": "Another account",
   "8ec2c57414669b79": "Connect a second {tracker} workspace or user.",
   "99963c0142e17f00": "For the new {tracker} account.",
@@ -13293,5 +13291,4 @@
   "0d50b5bfe7151ece": "Could not download file",
   "eb1fd384ad5919dd": "Internal note",
   "b45f0b467e9406d0": "Reply to customer"
->>>>>>> v0.1.14-nightly.20261127.5359
 }

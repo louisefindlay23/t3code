@@ -13106,13 +13106,11 @@
   "faa3bb26abb39c93": "O guia de revisão falhou",
   "b7df38b7d8792d78": "Abrir guia",
   "9e91e9a77b664e4e": "Não foi possível iniciar um guia de revisão",
-<<<<<<< HEAD
   "1e2835c9878b9bab": "Adicionar projeto…",
   "2b58435dac7b49ac": "Thread não movida",
   "13cde8ccf0b735c9": "Mova-a para o novo projeto quando o projeto estiver pronto.",
   "7bbe4d815b395d6f": "A thread será movida quando estiver pronta",
-  "9b813bb618d8ec11": "Ela é movida para o novo projeto quando a clonagem terminar."
-=======
+  "9b813bb618d8ec11": "Ela é movida para o novo projeto quando a clonagem terminar.",
   "99d51127f573296b": "Outra conta",
   "8ec2c57414669b79": "Conecte um segundo espaço de trabalho ou usuário do {tracker}.",
   "99963c0142e17f00": "Para a nova conta do {tracker}.",
@@ -13285,5 +13283,4 @@
   "0d50b5bfe7151ece": "Não foi possível baixar o arquivo",
   "eb1fd384ad5919dd": "Nota interna",
   "b45f0b467e9406d0": "Responder ao cliente"
->>>>>>> v0.1.14-nightly.20261127.5359
 }

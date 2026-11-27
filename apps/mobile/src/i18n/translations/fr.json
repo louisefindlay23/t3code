@@ -5742,11 +5742,9 @@
   "3328503592789bed": "Zen",
   "856812e7e1fc445e": "Appels d’outils dans la discussion",
   "8d545d54c0a9e950": "Masque les commandes, modifications et recherches lancées par les agents. Masquer les réussis garde les échecs. Zen n’affiche que les réponses finales. Les approbations, questions et erreurs s’affichent toujours.",
-<<<<<<< HEAD
   "1e2835c9878b9bab": "Ajouter un projet…",
   "7bbe4d815b395d6f": "Le fil sera déplacé une fois prêt",
-  "9b813bb618d8ec11": "Il sera déplacé vers le nouveau projet une fois le clonage terminé."
-=======
+  "9b813bb618d8ec11": "Il sera déplacé vers le nouveau projet une fois le clonage terminé.",
   "99d51127f573296b": "Autre compte",
   "8ec2c57414669b79": "Connectez un second espace de travail ou utilisateur {tracker}.",
   "892f08d21b8e48a9": "Fusionner {layers} dans {base} avec {kind, select, squash {squash} merge {merge} rebase {rebase} fastForward {fast-forward} other {{method}}} dès que leurs conditions sont remplies. Cela peut se produire immédiatement.",
@@ -5815,5 +5813,4 @@
   "f6cf1627f4acc5ef": "Visibilité du commentaire",
   "eb1fd384ad5919dd": "Note interne",
   "b45f0b467e9406d0": "Répondre au client"
->>>>>>> v0.1.14-nightly.20261127.5359
 }

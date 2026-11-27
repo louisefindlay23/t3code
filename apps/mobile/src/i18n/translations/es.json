@@ -5742,11 +5742,9 @@
   "3328503592789bed": "Zen",
   "856812e7e1fc445e": "Llamadas a herramientas en el chat",
   "8d545d54c0a9e950": "Oculta los comandos, ediciones y búsquedas que ejecutan los agentes. Ocultar las correctas mantiene los fallos. Zen solo muestra las respuestas finales. Las aprobaciones, preguntas y errores siempre se muestran.",
-<<<<<<< HEAD
   "1e2835c9878b9bab": "Añadir proyecto…",
   "7bbe4d815b395d6f": "El hilo se moverá cuando esté listo",
-  "9b813bb618d8ec11": "Se moverá al nuevo proyecto cuando termine la clonación."
-=======
+  "9b813bb618d8ec11": "Se moverá al nuevo proyecto cuando termine la clonación.",
   "99d51127f573296b": "Otra cuenta",
   "8ec2c57414669b79": "Conecta un segundo espacio de trabajo o usuario de {tracker}.",
   "892f08d21b8e48a9": "Fusionar {layers} en {base} con {kind, select, squash {squash} merge {merge} rebase {rebase} fastForward {fast-forward} other {{method}}} cuando se cumplan sus requisitos. Puede ocurrir de inmediato.",
@@ -5815,5 +5813,4 @@
   "f6cf1627f4acc5ef": "Visibilidad del comentario",
   "eb1fd384ad5919dd": "Nota interna",
   "b45f0b467e9406d0": "Responder al cliente"
->>>>>>> v0.1.14-nightly.20261127.5359
 }
