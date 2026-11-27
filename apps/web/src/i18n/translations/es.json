@@ -12328,6 +12328,7 @@
   ],
   "e7f35f60e6229cf5": "App de escritorio",
   "77be1b7e2a1d3d31": "{count, plural, one {¿Actualizar {count} máquina?} other {¿Actualizar {count} máquinas?}}",
+  "a02a732aa1c40c2a": "Ver notas de la versión",
   "e4892b21e88abb60": "{count, plural, one {{count} actualización de proveedor} other {{count} actualizaciones de proveedores}}",
   "36d530903a763a14": "Buscando más…",
   "f34dd019e6000fe3": "{count, plural, one {{count} omitido} other {{count} omitidos}}",

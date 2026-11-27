@@ -144,19 +144,20 @@ function UpdateEverythingDialogContent({
         <AlertDialogDescription>
           {version !== null ? (
             <>
-              T3 Code{" "}
+              T3 Code <span className="font-mono text-xs">{version}</span>
               {releaseUrl ? (
-                <a
-                  href={releaseUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-mono text-xs underline-offset-2 hover:underline"
-                >
-                  {version}
-                </a>
-              ) : (
-                <span className="font-mono text-xs">{version}</span>
-              )}
+                <>
+                  {" · "}
+                  <a
+                    href={releaseUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {gt("View Release Notes")}
+                  </a>
+                </>
+              ) : null}
             </>
           ) : null}
           {version !== null && providerCount > 0 ? " · " : null}
