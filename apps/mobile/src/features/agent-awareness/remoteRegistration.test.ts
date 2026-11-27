@@ -662,6 +662,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
   });
 
   it.effect("still registers with the relay when the direct registration fails", () => {
+    stubRelayFetch();
     Constants.expoConfig!.extra = { relay: { url: "https://relay.example.test/" } };
     directApns.register.mockRejectedValue(new Error("environment unreachable"));
     setAgentAwarenessRelayTokenProvider(() => Promise.resolve("clerk-token-user-a"));
