@@ -1130,6 +1130,7 @@ export const layer = Layer.effect(
                     commandId,
                     projectId: active.projectId,
                     title: active.title,
+                    titleRenamed: true,
                     modelSelection: active.modelSelection,
                     modelSelectionExplicit: true,
                     runtimeMode: active.runtimeMode,
