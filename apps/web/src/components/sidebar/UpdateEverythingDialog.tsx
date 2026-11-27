@@ -154,7 +154,7 @@ function UpdateEverythingDialogContent({
                     rel="noreferrer"
                     className="underline-offset-2 hover:underline"
                   >
-                    {gt("View release notes")}
+                    {gt("View Release Notes")}
                   </a>
                 </>
               ) : null}
