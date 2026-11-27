@@ -109,6 +109,7 @@ import {
   resolveAddProjectEnvironment,
 } from "./AddProjectScreen.logic";
 import { moveThreadToProject } from "../threads/moveThreadToProject";
+import { moveThreadAfterClone } from "./moveThreadAfterClone";
 import { readNewTaskFlowState } from "../threads/new-task-flow-state";
 import {
   createNewTaskDraft,
@@ -799,10 +800,13 @@ function useOpenNewTaskDraft() {
     const moveThread = addProjectMoveThread(navigation.getState()?.routes ?? []);
     if (moveThread !== null) {
       if (params.cloning !== undefined) {
-        // A project still cloning has no checkout for a moved thread to work in yet.
+        moveThreadAfterClone(moveThread, {
+          environmentId: params.environmentId,
+          projectId: params.projectId,
+        });
         Dialog.alert(
-          m(msg("Thread not moved")),
-          m(msg("Move it to the new project once the project is ready.")),
+          m(msg("Thread will move when ready")),
+          m(msg("It moves to the new project once the clone finishes.")),
         );
       } else if (moveThread.environmentId !== params.environmentId) {
         // A project on another machine takes the thread through the move-to-machine sheet.

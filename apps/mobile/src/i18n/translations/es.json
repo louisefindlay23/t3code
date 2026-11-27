@@ -5726,6 +5726,6 @@
   "856812e7e1fc445e": "Llamadas a herramientas en el chat",
   "8d545d54c0a9e950": "Oculta los comandos, ediciones y búsquedas que ejecutan los agentes. Ocultar las correctas mantiene los fallos. Zen solo muestra las respuestas finales. Las aprobaciones, preguntas y errores siempre se muestran.",
   "1e2835c9878b9bab": "Añadir proyecto…",
-  "2b58435dac7b49ac": "Hilo no movido",
-  "13cde8ccf0b735c9": "Muévelo al nuevo proyecto cuando el proyecto esté listo."
+  "7bbe4d815b395d6f": "El hilo se moverá cuando esté listo",
+  "9b813bb618d8ec11": "Se moverá al nuevo proyecto cuando termine la clonación."
 }

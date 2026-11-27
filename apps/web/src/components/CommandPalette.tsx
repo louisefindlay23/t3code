@@ -280,6 +280,7 @@ import { Checkbox } from "./ui/checkbox";
 import { ProjectFilePicker } from "./files/ProjectFilePicker";
 import { openLinkPullRequestDialog } from "./pullRequest/LinkPullRequestDialog";
 import { canShareWithGuestAtom } from "./chat/guestShareAvailability";
+import { moveThreadAfterClone, moveThreadToAddedProject } from "../lib/moveThreadToAddedProject";
 import { openMoveThread } from "./MoveThreadDialog";
 import { openGuestShareDialog } from "./chat/guestShareDialogState";
 import { openUseInAnotherApp } from "./mcp/UseInAnotherAppDialog";
@@ -606,35 +607,9 @@ function OpenCommandPaletteDialog(props: {
   const [addProjectMoveThread] = useState(() =>
     props.openIntent?.kind === "add-project" ? (props.openIntent.moveThread ?? null) : null,
   );
-  const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
-    reportFailure: false,
-  });
   const moveDraftToAddedProject = async (project: EnvironmentProject): Promise<boolean> => {
     if (addProjectMoveThread !== null) {
-      // A project on another machine takes the thread through the move-to-machine dialog.
-      if (project.environmentId !== addProjectMoveThread.environmentId) {
-        openMoveThread({
-          threadRef: addProjectMoveThread,
-          targetEnvironmentId: project.environmentId,
-          projectId: project.id,
-        });
-        return true;
-      }
-      const result = await updateThreadMetadata({
-        environmentId: addProjectMoveThread.environmentId,
-        input: { threadId: addProjectMoveThread.threadId, projectId: project.id },
-      });
-      if (result._tag !== "Success" && !isAtomCommandInterrupted(result)) {
-        toastManager.add(
-          stackedThreadToast({
-            type: "error",
-            title: gt("Could not move thread"),
-            description:
-              thrownErrorMessage(squashAtomCommandFailure(result), messages) ??
-              gt("An error occurred."),
-          }),
-        );
-      }
+      await moveThreadToAddedProject(addProjectMoveThread, project);
       return true;
     }
     if (addProjectDraftId === null || !moveDraftToProject(addProjectDraftId, project)) {
@@ -652,10 +627,16 @@ function OpenCommandPaletteDialog(props: {
       addProjectDraftId === null && addProjectMoveThread === null
         ? null
         : await waitForProject(projectRef, 3_000).catch(() => null);
-    // A project still cloning has no checkout for a moved thread to work in yet.
-    const canMove = !(options?.cloning && addProjectMoveThread !== null);
-    if (project !== null && canMove && (await moveDraftToAddedProject(project))) return;
-    if (addProjectMoveThread !== null) {
+    if (addProjectMoveThread !== null && project !== null && options?.cloning) {
+      moveThreadAfterClone(addProjectMoveThread, project);
+      toastManager.add({
+        type: "info",
+        title: gt("Thread will move when ready"),
+        description: gt("It moves to the new project once the clone finishes."),
+      });
+    } else if (project !== null && (await moveDraftToAddedProject(project))) {
+      return;
+    } else if (addProjectMoveThread !== null) {
       toastManager.add({
         type: "info",
         title: gt("Thread not moved"),

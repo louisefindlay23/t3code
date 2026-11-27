@@ -13095,5 +13095,7 @@
   "9e91e9a77b664e4e": "Could not start a review guide",
   "1e2835c9878b9bab": "Add project…",
   "2b58435dac7b49ac": "Thread not moved",
-  "13cde8ccf0b735c9": "Move it to the new project once the project is ready."
+  "13cde8ccf0b735c9": "Move it to the new project once the project is ready.",
+  "7bbe4d815b395d6f": "Thread will move when ready",
+  "9b813bb618d8ec11": "It moves to the new project once the clone finishes."
 }

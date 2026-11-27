@@ -61,6 +61,7 @@ vi.mock("../layout/workspace/useSelectWorkspaceDetail", async () => {
   };
 });
 vi.mock("../threads/moveThreadToProject", () => ({ moveThreadToProject: vi.fn() }));
+vi.mock("./moveThreadAfterClone", () => ({ moveThreadAfterClone: vi.fn() }));
 vi.mock("../../native/StackHeader", () => ({
   nativeHeaderScrollEdgeEffects: () => undefined,
 }));
