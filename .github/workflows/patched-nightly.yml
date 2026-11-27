@@ -751,6 +751,7 @@ jobs:
       T3CODE_MOBILE_IOS_BUNDLE_IDENTIFIER: com.louisefindlay23.t3code
       T3CODE_MOBILE_UPDATE_CHANNEL: testflight
       T3CODE_MOBILE_APS_ENVIRONMENT: production
+      T3CODE_MOBILE_BUILD_NUMBER: ${{ github.run_number }}
       TEAM_ID: 977GLV4RS3
     steps:
       - name: Check out prepared patched nightly source

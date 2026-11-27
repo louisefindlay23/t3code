@@ -41,8 +41,9 @@ function jwt({ keyId, issuer, key }) {
 async function main() {
   const { APPLE_API_KEY, APPLE_API_KEY_ID, APPLE_API_ISSUER, BUNDLE_ID, BUILD_NUMBER, BASE_REF } =
     process.env;
-  const token = jwt({ keyId: APPLE_API_KEY_ID, issuer: APPLE_API_ISSUER, key: APPLE_API_KEY });
+  // The token lives 10 minutes but the build poll can run 30, so sign per request.
   const api = async (path, init) => {
+    const token = jwt({ keyId: APPLE_API_KEY_ID, issuer: APPLE_API_ISSUER, key: APPLE_API_KEY });
     const response = await fetch(`https://api.appstoreconnect.apple.com${path}`, {
       ...init,
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
