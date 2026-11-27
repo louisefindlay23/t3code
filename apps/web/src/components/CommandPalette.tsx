@@ -611,6 +611,15 @@ function OpenCommandPaletteDialog(props: {
   });
   const moveDraftToAddedProject = async (project: EnvironmentProject): Promise<boolean> => {
     if (addProjectMoveThread !== null) {
+      // A project on another machine takes the thread through the move-to-machine dialog.
+      if (project.environmentId !== addProjectMoveThread.environmentId) {
+        openMoveThread({
+          threadRef: addProjectMoveThread,
+          targetEnvironmentId: project.environmentId,
+          projectId: project.id,
+        });
+        return true;
+      }
       const result = await updateThreadMetadata({
         environmentId: addProjectMoveThread.environmentId,
         input: { threadId: addProjectMoveThread.threadId, projectId: project.id },
@@ -687,12 +696,7 @@ function OpenCommandPaletteDialog(props: {
 
   const addProjectEnvironmentOptions = (() => {
     const options = environments
-      .filter(
-        (environment) =>
-          canCreateProjectInEnvironment(environment.connection.phase) &&
-          (addProjectMoveThread === null ||
-            environment.environmentId === addProjectMoveThread.environmentId),
-      )
+      .filter((environment) => canCreateProjectInEnvironment(environment.connection.phase))
       .map((environment): AddProjectEnvironmentOption => {
         const isPrimary = environment.entry.target._tag === "PrimaryConnectionTarget";
         return {

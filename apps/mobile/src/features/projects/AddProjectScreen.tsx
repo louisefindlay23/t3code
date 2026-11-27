@@ -797,7 +797,19 @@ function useOpenNewTaskDraft() {
   ) => {
     if (!isActiveRoute(navigation, originRoute)) return;
     const moveThread = addProjectMoveThread(navigation.getState()?.routes ?? []);
-    if (moveThread !== null && moveThread.environmentId === params.environmentId) {
+    if (moveThread !== null && moveThread.environmentId !== params.environmentId) {
+      // A project on another machine takes the thread through the move-to-machine sheet.
+      navigation.dispatch(
+        StackActions.replace("ThreadMove", {
+          environmentId: moveThread.environmentId,
+          threadId: moveThread.id,
+          targetEnvironmentId: params.environmentId,
+          projectId: params.projectId,
+        }),
+      );
+      return;
+    }
+    if (moveThread !== null) {
       await moveThreadToProject(moveThread, params.projectId);
       selectDetail({
         name: "Thread",

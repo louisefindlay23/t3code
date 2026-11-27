@@ -47,6 +47,8 @@ import { toastManager } from "./ui/toast";
 interface MoveThreadRequest {
   readonly threadRef: ScopedThreadRef;
   readonly targetEnvironmentId: EnvironmentId;
+  /** A project already chosen on the target, such as one just added for this thread. */
+  readonly projectId?: ProjectId;
 }
 
 type ExportState =
@@ -131,7 +133,9 @@ function MoveThreadDialog({
     (project) =>
       project.environmentId === request.targetEnvironmentId && project.archivedAt == null,
   );
-  const [chosenProjectId, setChosenProjectId] = useState<ProjectId | null>(null);
+  const [chosenProjectId, setChosenProjectId] = useState<ProjectId | null>(
+    request.projectId ?? null,
+  );
   const matchedProject = findMoveTargetProject(sourceProject, targetProjects);
   const targetProject =
     targetProjects.find((project) => project.id === chosenProjectId) ?? matchedProject;
