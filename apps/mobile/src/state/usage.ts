@@ -14,6 +14,7 @@ import { AsyncResult, Atom } from "effect/reactivity";
 import { msg, useMessages } from "gt-react-native";
 import { useCallback, useMemo } from "react";
 
+import { withoutHiddenProviders } from "../lib/usageProviderFilter";
 import { keepMarked } from "../i18n/messages";
 import { appAtomRegistry } from "./atom-registry";
 import { environmentPresentations } from "./presentation";
@@ -147,10 +148,13 @@ export function useUsage(
   );
   const selectedEnvironments = useMemo(
     () =>
-      selectedEnvironmentIds === null
-        ? environments
-        : environments.filter(({ environmentId }) => selectedEnvironmentIds.has(environmentId)),
-    [environments, selectedEnvironmentIds],
+      withoutHiddenProviders(
+        selectedEnvironmentIds === null
+          ? environments
+          : environments.filter(({ environmentId }) => selectedEnvironmentIds.has(environmentId)),
+        hiddenProviders,
+      ),
+    [environments, selectedEnvironmentIds, hiddenProviders],
   );
 
   const refresh = useCallback(
@@ -180,23 +184,12 @@ export function useUsage(
             {
               environmentId: environment.environmentId,
               label: environment.label,
-              summary:
-                hiddenProviders.size === 0
-                  ? environment.summary
-                  : {
-                      ...environment.summary,
-                      buckets: environment.summary.buckets.filter(
-                        (bucket) => !hiddenProviders.has(bucket.provider),
-                      ),
-                      sources: environment.summary.sources.filter(
-                        (source) => !hiddenProviders.has(source.fingerprint.provider),
-                      ),
-                    },
+              summary: environment.summary,
             },
           ],
     );
     return mergeUsage(answered, USAGE_CONTRACT_VERSION);
-  }, [selectedEnvironments, hiddenProviders]);
+  }, [selectedEnvironments]);
 
   const answeredCount = selectedEnvironments.filter(
     (environment) => environment.summary !== null,

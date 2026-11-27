@@ -366,7 +366,9 @@ function UsageScreen(props: {
                       size="compact"
                     />
                   )}
-                  <ChatGptUsageSummary selectedEnvironmentIds={selectedEnvironmentIds} />
+                  {hiddenProviders.has("codex") ? null : (
+                    <ChatGptUsageSummary selectedEnvironmentIds={selectedEnvironmentIds} />
+                  )}
                   {merged.duplicateSources.length > 0 ? (
                     <Text className="text-sm text-foreground-muted">
                       <T>
