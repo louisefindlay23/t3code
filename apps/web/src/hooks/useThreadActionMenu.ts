@@ -2,6 +2,7 @@ import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import { requestCustomSnooze } from "../components/CustomSnoozeDialog";
 import { openGuestShareDialog } from "../components/chat/guestShareDialogState";
+import { openMoveThread } from "../components/MoveThreadDialog";
 import {
   type AtomCommandResult,
   isAtomCommandInterrupted,
@@ -36,6 +37,8 @@ import { threadChipCopyTarget } from "@t3tools/client-runtime/thread-reference";
 import { threadEnvironment } from "../state/threads";
 import { threadTriagePermitted, useOrchestrationCommand } from "../state/use-orchestration-command";
 import { readEnvironmentScope } from "../state/session";
+import { threadMoveTargetsAtom } from "../state/threadMove";
+import { appAtomRegistry } from "../rpc/atomRegistry";
 import {
   readEnvironmentServerConfigLoaded,
   readEnvironmentSupportsAutoSettleOptOut,
@@ -139,6 +142,7 @@ export function useThreadActionMenu(input: {
     };
     const isRegeneratingTitle = thread.titleRegeneration != null;
     const snoozePresets = resolveSnoozePresets(now, timestampFormat, threadRef.environmentId);
+    const moveTargets = appAtomRegistry.get(threadMoveTargetsAtom(threadRef.environmentId));
     const items = buildThreadActionMenuItems({
       canOperate: readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope),
       canTriage: threadTriagePermitted(threadRef.environmentId),
@@ -159,6 +163,7 @@ export function useThreadActionMenu(input: {
       canShareWithGuest,
       canTurnIntoProject: canTurnThreadIntoProject(threadRef),
       ...moveProjectMenuState(thread, projects),
+      moveTargets,
     });
     const run = async (action: ThreadActionMenuId) => {
       const api = readLocalApi();
@@ -186,6 +191,11 @@ export function useThreadActionMenu(input: {
         if (result._tag !== "Success" && !isAtomCommandInterrupted(result)) {
           failureToast(m(msg("Could not move thread")), squashAtomCommandFailure(result));
         }
+        return;
+      }
+      const moveTarget = moveTargets.find((target) => `move:${target.environmentId}` === action);
+      if (moveTarget) {
+        openMoveThread({ threadRef, targetEnvironmentId: moveTarget.environmentId });
         return;
       }
       if (action.startsWith("snooze:")) {

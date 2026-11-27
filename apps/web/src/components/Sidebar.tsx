@@ -11,6 +11,7 @@ import {
 } from "./chat/threadContextDrag";
 import { discardComposerDraft } from "../lib/discardComposerDraft";
 import { requestCustomSnooze } from "./CustomSnoozeDialog";
+import { openMoveThread } from "./MoveThreadDialog";
 import { useAtomValue } from "@effect/atom-react";
 import * as Option from "effect/Option";
 import { Atom } from "effect/reactivity";
@@ -164,6 +165,7 @@ import { useThreadSearch } from "../state/queries";
 import { threadTriagePermitted, useOrchestrationCommand } from "../state/use-orchestration-command";
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
 import { appAtomRegistry } from "../rpc/atomRegistry";
+import { threadMoveTargetsAtom } from "../state/threadMove";
 import { canShareWithGuestAtom } from "./chat/guestShareAvailability";
 import { openGuestShareDialog } from "./chat/guestShareDialogState";
 import {
@@ -2726,6 +2728,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                 projectRef.projectId === thread.projectId,
             ),
           ) ?? null;
+        const moveTargets = appAtomRegistry.get(threadMoveTargetsAtom(threadRef.environmentId));
         const clicked = await settlePromise(() =>
           api.contextMenu.show(
             buildThreadActionMenuItems({
@@ -2757,6 +2760,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               canTurnIntoProject: canTurnThreadIntoProject(threadRef),
               ...moveProjectMenuState(thread, projects),
               canRename: !fromSearch,
+              moveTargets,
               supports: {
                 settlement: configLoaded,
                 autoSettleOptOut: supportsAutoSettleOptOut,
@@ -2794,6 +2798,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               }),
             );
           }
+          return;
+        }
+        const moveTarget = moveTargets.find(
+          (target) => `move:${target.environmentId}` === clicked.value,
+        );
+        if (moveTarget) {
+          openMoveThread({ threadRef, targetEnvironmentId: moveTarget.environmentId });
           return;
         }
         if (clicked.value?.startsWith("snooze:")) {
