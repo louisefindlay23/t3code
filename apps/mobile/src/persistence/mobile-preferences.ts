@@ -15,7 +15,7 @@ import {
   PullRequestListFilters,
   PullRequestListState,
   type ProviderInstanceId,
-  UsageProviderKind,
+  type UsageProviderKind,
   PullRequestMergeMethod,
   type SidebarProjectGroupingMode,
 } from "@t3tools/contracts";
@@ -25,6 +25,7 @@ import type { ComposerEnterBehavior } from "../lib/composerEnterBehavior";
 import type { FollowUpBehavior } from "../lib/followUpBehavior";
 import { isMicrophoneKind, type MicrophoneEntry } from "../lib/microphonePriority";
 import { MOBILE_THEME_IDS, type MobileThemeId, type MobileThemeMode } from "../lib/mobileTheme";
+import { sanitizeHiddenProviders } from "../lib/usageProviderFilter";
 import * as MobileDatabase from "./mobile-database";
 import * as MobileSecureStorage from "./mobile-secure-storage";
 import { MobileStorageDecodeError, MobileStorageEncodeError } from "./mobile-storage";
@@ -50,7 +51,6 @@ export const PullRequestSavedView = Schema.Struct({
   query: Schema.String,
 });
 export type PullRequestSavedView = typeof PullRequestSavedView.Type;
-const isUsageHiddenProviders = Schema.is(Schema.Array(UsageProviderKind));
 const isPullRequestSavedView = Schema.is(PullRequestSavedView);
 
 export const IssueSavedView = Schema.Struct({
@@ -357,8 +357,8 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   if (typeof parsed.codeWordBreak === "boolean") preferences.codeWordBreak = parsed.codeWordBreak;
   if (typeof parsed.mathRenderingEnabled === "boolean")
     preferences.mathRenderingEnabled = parsed.mathRenderingEnabled;
-  if (isUsageHiddenProviders(parsed.usageHiddenProviders)) {
-    preferences.usageHiddenProviders = parsed.usageHiddenProviders;
+  if (Array.isArray(parsed.usageHiddenProviders)) {
+    preferences.usageHiddenProviders = sanitizeHiddenProviders(parsed.usageHiddenProviders);
   }
   if (typeof parsed.crashReportsEnabled === "boolean") {
     preferences.crashReportsEnabled = parsed.crashReportsEnabled;

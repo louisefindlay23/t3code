@@ -27,6 +27,7 @@ import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScroll
 import { Defs, Path, Pattern, Rect, Svg } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { withoutHiddenLimitProviders } from "../../lib/usageProviderFilter";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { AppText as Text } from "../../components/ui/AppText";
 import { ProviderIcon } from "../../components/ProviderIcon";
@@ -480,34 +481,11 @@ export function UsageLimitsSection({
   readonly wide?: boolean;
 }) {
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
-  const isVisible = (driver: string) => {
-    const kind = usageProviderKind(driver);
-    return kind === null || !hiddenProviders.has(kind);
-  };
-  const selected = new Map(
-    [...presentations].flatMap(([id, presentation]) => {
-      if (selectedEnvironmentIds !== null && !selectedEnvironmentIds.has(id)) return [];
-      const config = presentation.serverConfig;
-      if (hiddenProviders.size === 0 || config === null) return [[id, presentation] as const];
-      return [
-        [
-          id,
-          {
-            ...presentation,
-            serverConfig: {
-              ...config,
-              providers: config.providers.filter((provider) => isVisible(provider.driver)),
-              usageLimitSources: config.usageLimitSources?.flatMap((source) => {
-                const accounts = source.accounts.filter((account) => isVisible(account.driver));
-                return accounts.length === 0 && source.accounts.length > 0
-                  ? []
-                  : [{ ...source, accounts }];
-              }),
-            },
-          },
-        ] as const,
-      ];
-    }),
+  const selected = withoutHiddenLimitProviders(
+    selectedEnvironmentIds === null
+      ? presentations
+      : new Map([...presentations].filter(([id]) => selectedEnvironmentIds.has(id))),
+    hiddenProviders,
   );
   const pools = collectLimitPools(collectLimitAccounts(selected), now);
   const quotaSources = collectHttpQuotaSources(selected);
@@ -526,7 +504,9 @@ export function UsageLimitsSection({
         <Text className="py-12 text-center text-base text-foreground-muted">
           {selected.size === 0
             ? gt("Select an environment to see limits.")
-            : gt("No provider on the selected environments reports subscription limits.")}
+            : hiddenProviders.size > 0
+              ? gt("No limits to show. Some providers are hidden by the provider filter.")
+              : gt("No provider on the selected environments reports subscription limits.")}
         </Text>
       ) : null}
       {quotaSources.map((source) => (
