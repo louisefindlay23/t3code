@@ -466,6 +466,7 @@ jobs:
     name: Build macOS installers
     needs: resolve
     if: needs.resolve.outputs.should_build == 'true'
+    environment: release-signing
     runs-on: macos-latest
     timeout-minutes: 90
     permissions:
@@ -740,6 +741,7 @@ jobs:
     name: Build and upload TestFlight
     needs: [resolve, mobile_native_check]
     if: needs.mobile_native_check.outputs.build == 'true'
+    environment: release-signing
     runs-on: macos-latest
     timeout-minutes: 90
     permissions:
