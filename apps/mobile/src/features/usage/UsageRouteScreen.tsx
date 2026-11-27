@@ -25,7 +25,9 @@ import {
 } from "@t3tools/shared/usageFormat";
 import { formatUsageContractMismatch, usageSourceMessages } from "@t3tools/shared/usageFormatCopy";
 import { msg, T, useGT, useLocale, useMessages, Var } from "gt-react-native";
-import { use, useRef, useState, type ReactNode } from "react";
+import { use, useMemo, useRef, useState, type ReactNode } from "react";
+import { useAtomValue } from "@effect/atom-react";
+import { AsyncResult } from "effect/reactivity";
 import { View } from "react-native";
 import { RefreshControl } from "../../components/ui/RefreshControl";
 import Animated, { FadeIn, ReduceMotion } from "react-native-reanimated";
@@ -39,6 +41,8 @@ import { cn } from "../../lib/cn";
 import type { MessageResolver } from "../../i18n/messages";
 import { SettingsScreen } from "../settings/components/SettingsScreen";
 import { NativeWorkspaceTabActivityContext } from "../../native/v5-workspace-context";
+import { mobilePreferencesAtom, saveMobilePreferences } from "../../state/preferences";
+import { useAtomCommand } from "../../state/use-atom-command";
 import { useUsage, type EnvironmentUsageStatus } from "../../state/usage";
 import { SettingsSection } from "../settings/components/SettingsSection";
 import { usageAxisDayLabel, usageAxisHourLabel } from "./usageAxisLabels";
@@ -47,7 +51,12 @@ import { toggleUsageEnvironment } from "./usageEnvironmentSelection";
 import { useRefreshLimits } from "./UsageLimitsSection";
 import { UsageLimitsSection } from "./UsageLimitsPooled";
 import type { UsageChartMetric } from "./usageChartData";
-import { PROVIDER_LABEL, useProviderColors, useUsageMixColors } from "./usageProviders";
+import {
+  PROVIDER_LABEL,
+  PROVIDER_ORDER,
+  useProviderColors,
+  useUsageMixColors,
+} from "./usageProviders";
 
 type UsageView = UsageChartMetric | "limits";
 const VIEW_OPTIONS = [
@@ -129,10 +138,20 @@ function UsageScreen(props: {
   const isPast24Hours = windowDays === 1;
   const [selectedEnvironmentIds, setSelectedEnvironmentIds] =
     useState<ReadonlySet<EnvironmentId> | null>(null);
+  const preferencesResult = useAtomValue(mobilePreferencesAtom);
+  const savePreferences = useAtomCommand(saveMobilePreferences);
+  const hiddenList = AsyncResult.isSuccess(preferencesResult)
+    ? preferencesResult.value.usageHiddenProviders
+    : undefined;
+  const hiddenProviders = useMemo(
+    (): ReadonlySet<UsageProviderKind> => new Set(hiddenList),
+    [hiddenList],
+  );
   const { merged, environments, selectedEnvironments, isPending, refresh } = useUsage(
     window,
     selectedEnvironmentIds,
     !headerOnly,
+    hiddenProviders,
   );
   const isFocused = useIsFocused();
   const limits = useRefreshLimits(
@@ -243,10 +262,37 @@ function UsageScreen(props: {
     ],
   };
 
+  const toggleProvider = (provider: UsageProviderKind) =>
+    void savePreferences({
+      transform: (current) => {
+        const hidden = new Set(current.usageHiddenProviders);
+        if (!hidden.delete(provider)) hidden.add(provider);
+        return { usageHiddenProviders: PROVIDER_ORDER.filter((kind) => hidden.has(kind)) };
+      },
+    });
+  const providerMenu = {
+    title: gt("Filter usage providers"),
+    icon: "slider.horizontal.3" as const,
+    items: [
+      {
+        id: "all",
+        title: gt("All providers"),
+        selected: hiddenProviders.size === 0,
+        onPress: () => void savePreferences({ usageHiddenProviders: [] }),
+      },
+      ...PROVIDER_ORDER.map((provider) => ({
+        id: provider,
+        title: PROVIDER_LABEL[provider],
+        selected: !hiddenProviders.has(provider),
+        onPress: () => toggleProvider(provider),
+      })),
+    ],
+  };
+
   return (
     <SettingsScreen
       title={gt("Usage", { $context: "screen title" })}
-      menus={showEnvironmentFilter ? [environmentMenu] : undefined}
+      menus={showEnvironmentFilter ? [environmentMenu, providerMenu] : [providerMenu]}
       workspaceRoot={props.workspace}
     >
       {headerOnly ? null : (
@@ -307,6 +353,7 @@ function UsageScreen(props: {
                   now={limits.now}
                   failedLabels={limits.failedLabels}
                   selectedEnvironmentIds={selectedEnvironmentIds}
+                  hiddenProviders={hiddenProviders}
                   wide={wide}
                 />
               ) : (
