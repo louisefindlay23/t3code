@@ -6,7 +6,10 @@ import assetLinks from "../web/public/.well-known/assetlinks.json";
 
 // Keep config parsing independent of local env files and build credentials.
 vi.mock("../../scripts/lib/public-config.ts", () => ({
-  loadRepoEnv: () => ({ APP_VARIANT: process.env.APP_VARIANT }),
+  loadRepoEnv: () => ({
+    APP_VARIANT: process.env.APP_VARIANT,
+    T3CODE_MOBILE_BUILD_NUMBER: process.env.T3CODE_MOBILE_BUILD_NUMBER,
+  }),
 }));
 
 afterEach(() => {
@@ -44,4 +47,9 @@ it.each([
     { scheme: "https", host, pathPrefix: "/threads/" },
   ]);
   expect(assetLinks.map((link) => link.target.package_name)).toContain(identifier);
+});
+
+it("sets the iOS build number from T3CODE_MOBILE_BUILD_NUMBER", async () => {
+  vi.stubEnv("T3CODE_MOBILE_BUILD_NUMBER", "182");
+  expect((await loadConfig("production")).ios?.buildNumber).toBe("182");
 });
