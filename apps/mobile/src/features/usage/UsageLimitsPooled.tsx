@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId, type UsageProviderKind } from "@t3tools/contracts";
 import { providerClients } from "@t3tools/client-runtime/provider-clients";
 import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/provider-instance-display";
 import {
@@ -470,18 +470,45 @@ export function UsageLimitsSection({
   now,
   failedLabels,
   selectedEnvironmentIds,
+  hiddenProviders,
   wide = false,
 }: {
   readonly now: number;
   readonly failedLabels: readonly string[];
   readonly selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null;
+  readonly hiddenProviders: ReadonlySet<UsageProviderKind>;
   readonly wide?: boolean;
 }) {
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
-  const selected =
-    selectedEnvironmentIds === null
-      ? presentations
-      : new Map([...presentations].filter(([id]) => selectedEnvironmentIds.has(id)));
+  const isVisible = (driver: string) => {
+    const kind = usageProviderKind(driver);
+    return kind === null || !hiddenProviders.has(kind);
+  };
+  const selected = new Map(
+    [...presentations].flatMap(([id, presentation]) => {
+      if (selectedEnvironmentIds !== null && !selectedEnvironmentIds.has(id)) return [];
+      const config = presentation.serverConfig;
+      if (hiddenProviders.size === 0 || config === null) return [[id, presentation] as const];
+      return [
+        [
+          id,
+          {
+            ...presentation,
+            serverConfig: {
+              ...config,
+              providers: config.providers.filter((provider) => isVisible(provider.driver)),
+              usageLimitSources: config.usageLimitSources?.flatMap((source) => {
+                const accounts = source.accounts.filter((account) => isVisible(account.driver));
+                return accounts.length === 0 && source.accounts.length > 0
+                  ? []
+                  : [{ ...source, accounts }];
+              }),
+            },
+          },
+        ] as const,
+      ];
+    }),
+  );
   const pools = collectLimitPools(collectLimitAccounts(selected), now);
   const quotaSources = collectHttpQuotaSources(selected);
   const m = useMessages();

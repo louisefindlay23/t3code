@@ -3,6 +3,7 @@ import {
   AuthDiagnosticsReadScope,
   USAGE_CONTRACT_VERSION,
   type EnvironmentId,
+  type UsageProviderKind,
   type UsageSummary,
   type UsageSummaryInput,
 } from "@t3tools/contracts";
@@ -28,6 +29,8 @@ export interface EnvironmentUsageStatus {
   readonly error: string | null;
   readonly summary: UsageSummary | null;
 }
+
+const NO_HIDDEN_PROVIDERS: ReadonlySet<UsageProviderKind> = new Set();
 
 const usageByWindowAtom = Atom.family((windowKey: string) =>
   Atom.make((get): readonly EnvironmentUsageStatus[] => {
@@ -108,6 +111,7 @@ export function useUsage(
   selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null = null,
   /** Off, it lists the environments without loading their usage. */
   load = true,
+  hiddenProviders: ReadonlySet<UsageProviderKind> = NO_HIDDEN_PROVIDERS,
 ): UsageView {
   const windowKey = useMemo(
     () =>
@@ -176,12 +180,23 @@ export function useUsage(
             {
               environmentId: environment.environmentId,
               label: environment.label,
-              summary: environment.summary,
+              summary:
+                hiddenProviders.size === 0
+                  ? environment.summary
+                  : {
+                      ...environment.summary,
+                      buckets: environment.summary.buckets.filter(
+                        (bucket) => !hiddenProviders.has(bucket.provider),
+                      ),
+                      sources: environment.summary.sources.filter(
+                        (source) => !hiddenProviders.has(source.fingerprint.provider),
+                      ),
+                    },
             },
           ],
     );
     return mergeUsage(answered, USAGE_CONTRACT_VERSION);
-  }, [selectedEnvironments]);
+  }, [selectedEnvironments, hiddenProviders]);
 
   const answeredCount = selectedEnvironments.filter(
     (environment) => environment.summary !== null,

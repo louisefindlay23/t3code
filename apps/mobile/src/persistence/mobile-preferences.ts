@@ -15,6 +15,7 @@ import {
   PullRequestListFilters,
   PullRequestListState,
   type ProviderInstanceId,
+  UsageProviderKind,
   PullRequestMergeMethod,
   type SidebarProjectGroupingMode,
 } from "@t3tools/contracts";
@@ -49,6 +50,7 @@ export const PullRequestSavedView = Schema.Struct({
   query: Schema.String,
 });
 export type PullRequestSavedView = typeof PullRequestSavedView.Type;
+const isUsageHiddenProviders = Schema.is(Schema.Array(UsageProviderKind));
 const isPullRequestSavedView = Schema.is(PullRequestSavedView);
 
 export const IssueSavedView = Schema.Struct({
@@ -154,6 +156,7 @@ export interface Preferences {
   readonly codeFontSize?: number | null;
   readonly codeWordBreak?: boolean;
   readonly mathRenderingEnabled?: boolean;
+  readonly usageHiddenProviders?: ReadonlyArray<UsageProviderKind>;
   /** Unset means on: crash reports are sent unless the user turns them off. */
   readonly crashReportsEnabled?: boolean;
   /** Unset means on: connection traces are sent unless the user turns them off. */
@@ -253,6 +256,7 @@ function sanitizePreferences(parsed: Preferences): Preferences {
     codeFontSize?: number | null;
     codeWordBreak?: boolean;
     mathRenderingEnabled?: boolean;
+    usageHiddenProviders?: ReadonlyArray<UsageProviderKind>;
     crashReportsEnabled?: boolean;
     connectionTracesEnabled?: boolean;
     connectOnboardingOptOutAccounts?: ReadonlyArray<string>;
@@ -353,6 +357,9 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   if (typeof parsed.codeWordBreak === "boolean") preferences.codeWordBreak = parsed.codeWordBreak;
   if (typeof parsed.mathRenderingEnabled === "boolean")
     preferences.mathRenderingEnabled = parsed.mathRenderingEnabled;
+  if (isUsageHiddenProviders(parsed.usageHiddenProviders)) {
+    preferences.usageHiddenProviders = parsed.usageHiddenProviders;
+  }
   if (typeof parsed.crashReportsEnabled === "boolean") {
     preferences.crashReportsEnabled = parsed.crashReportsEnabled;
   }
