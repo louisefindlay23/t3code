@@ -139,6 +139,10 @@ describe("buildThreadActionMenuItems", () => {
       (item) => item.id === "move-project",
     );
     expect(move?.disabled).toBe(true);
-    expect(move?.children?.map((child) => child.id)).toEqual(["move-project:b", "move-project:s"]);
+    expect(move?.children?.map((child) => child.id)).toEqual([
+      "move-project:b",
+      "move-project:s",
+      "move-project-add",
+    ]);
   });
 });

@@ -1,4 +1,8 @@
-import type { EnvironmentId, PullRequestLinkedThreadsResult } from "@t3tools/contracts";
+import type {
+  EnvironmentId,
+  PullRequestLinkedThreadsResult,
+  ScopedThreadRef,
+} from "@t3tools/contracts";
 
 import type { DraftId } from "./composerDraftStore";
 import { dispatchCommandPalette, isCommandPaletteMounted } from "./commandPaletteStore";
@@ -12,6 +16,8 @@ export interface CommandPaletteOpenDetail {
   readonly open?: "add-project" | "new-thread-in";
   /** With add-project: the draft the new project is picked for. */
   readonly draftId?: DraftId | null;
+  /** With add-project: the thread that moves into the new project, which is added in its environment. */
+  readonly moveThread?: ScopedThreadRef;
   readonly query?: string;
   readonly linkedThreads?: CommandPaletteLinkedThreads;
 }
@@ -26,6 +32,7 @@ export function openCommandPalette(detail: CommandPaletteOpenDetail = {}): void 
     dispatchCommandPalette({
       _tag: "OpenAddProject",
       ...(detail.draftId ? { draftId: detail.draftId } : {}),
+      ...(detail.moveThread ? { moveThread: detail.moveThread } : {}),
     });
   } else if (detail.query !== undefined) {
     dispatchCommandPalette({

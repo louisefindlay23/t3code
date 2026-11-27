@@ -602,7 +602,32 @@ function OpenCommandPaletteDialog(props: {
   const [addProjectDraftId] = useState(() =>
     props.openIntent?.kind === "add-project" ? (props.openIntent.draftId ?? null) : null,
   );
+  // "Move to project > Add project" moves that thread into the new project instead.
+  const [addProjectMoveThread] = useState(() =>
+    props.openIntent?.kind === "add-project" ? (props.openIntent.moveThread ?? null) : null,
+  );
+  const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
+    reportFailure: false,
+  });
   const moveDraftToAddedProject = async (project: EnvironmentProject): Promise<boolean> => {
+    if (addProjectMoveThread !== null) {
+      const result = await updateThreadMetadata({
+        environmentId: addProjectMoveThread.environmentId,
+        input: { threadId: addProjectMoveThread.threadId, projectId: project.id },
+      });
+      if (result._tag !== "Success" && !isAtomCommandInterrupted(result)) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: gt("Could not move thread"),
+            description:
+              thrownErrorMessage(squashAtomCommandFailure(result), messages) ??
+              gt("An error occurred."),
+          }),
+        );
+      }
+      return true;
+    }
     if (addProjectDraftId === null || !moveDraftToProject(addProjectDraftId, project)) {
       return false;
     }
@@ -612,7 +637,9 @@ function OpenCommandPaletteDialog(props: {
   const openAddedProject = async (projectRef: ScopedProjectRef): Promise<void> => {
     // A moved draft is keyed from the project record, so wait for it to reach this client.
     const project =
-      addProjectDraftId === null ? null : await waitForProject(projectRef, 3_000).catch(() => null);
+      addProjectDraftId === null && addProjectMoveThread === null
+        ? null
+        : await waitForProject(projectRef, 3_000).catch(() => null);
     if (project !== null && (await moveDraftToAddedProject(project))) return;
     await handleNewThread(projectRef);
   };
@@ -660,7 +687,12 @@ function OpenCommandPaletteDialog(props: {
 
   const addProjectEnvironmentOptions = (() => {
     const options = environments
-      .filter((environment) => canCreateProjectInEnvironment(environment.connection.phase))
+      .filter(
+        (environment) =>
+          canCreateProjectInEnvironment(environment.connection.phase) &&
+          (addProjectMoveThread === null ||
+            environment.environmentId === addProjectMoveThread.environmentId),
+      )
       .map((environment): AddProjectEnvironmentOption => {
         const isPrimary = environment.entry.target._tag === "PrimaryConnectionTarget";
         return {

@@ -17,6 +17,7 @@ import { readEnvironmentScope } from "../../state/session";
 import { threadEnvironment } from "../../state/threads";
 
 export const MOVE_PROJECT_PREFIX = "move-project:";
+export const MOVE_PROJECT_ADD = "move-project-add";
 
 /** Other projects in the thread's environment; the server rejects running threads and subagents. */
 export function moveProjectTargets(
@@ -38,7 +39,7 @@ export function moveProjectTargets(
 }
 
 export async function moveThreadToProject(
-  thread: EnvironmentThreadShell,
+  thread: Pick<EnvironmentThreadShell, "environmentId" | "id">,
   projectId: string,
 ): Promise<void> {
   const title = m(msg("Could not move thread"));

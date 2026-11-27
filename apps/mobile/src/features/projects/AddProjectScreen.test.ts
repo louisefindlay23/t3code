@@ -60,6 +60,7 @@ vi.mock("../layout/workspace/useSelectWorkspaceDetail", async () => {
       state.dispatch(selectWorkspaceDetail(detail)),
   };
 });
+vi.mock("../threads/moveThreadToProject", () => ({ moveThreadToProject: vi.fn() }));
 vi.mock("../../native/StackHeader", () => ({
   nativeHeaderScrollEdgeEffects: () => undefined,
 }));

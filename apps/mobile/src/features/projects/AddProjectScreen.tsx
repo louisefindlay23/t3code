@@ -59,6 +59,7 @@ import {
   type EnvironmentId,
   type EnvironmentMachineKind,
   ProjectId,
+  type ThreadId,
   resolveEnvironmentMachineKind,
   SourceControlProviderKind,
 } from "@t3tools/contracts";
@@ -107,6 +108,7 @@ import {
   isMissingCloneParentBrowseFailure,
   resolveAddProjectEnvironment,
 } from "./AddProjectScreen.logic";
+import { moveThreadToProject } from "../threads/moveThreadToProject";
 import { readNewTaskFlowState } from "../threads/new-task-flow-state";
 import {
   createNewTaskDraft,
@@ -770,6 +772,16 @@ function isActiveRoute(
   );
 }
 
+/** "Move to project > Add project" starts the flow with the thread to move; its root route keeps it. */
+function addProjectMoveThread(routes: NavigationState<ParamListBase>["routes"]) {
+  const params = routes.find((route) => route.name === "AddProject")?.params as
+    | { environmentId?: string; moveThreadId?: string }
+    | undefined;
+  return params?.environmentId && params.moveThreadId
+    ? { environmentId: params.environmentId as EnvironmentId, id: params.moveThreadId as ThreadId }
+    : null;
+}
+
 function useOpenNewTaskDraft() {
   const navigation = useNavigation<NativeStackNavigationProp<ReactNavigation.RootParamList>>();
   const selectDetail = useSelectWorkspaceDetail();
@@ -784,6 +796,15 @@ function useOpenNewTaskDraft() {
     originRoute: NavigationState<ParamListBase>["routes"][number] | undefined,
   ) => {
     if (!isActiveRoute(navigation, originRoute)) return;
+    const moveThread = addProjectMoveThread(navigation.getState()?.routes ?? []);
+    if (moveThread !== null && moveThread.environmentId === params.environmentId) {
+      await moveThreadToProject(moveThread, params.projectId);
+      selectDetail({
+        name: "Thread",
+        params: { environmentId: moveThread.environmentId, threadId: moveThread.id },
+      });
+      return;
+    }
     const chooserDraft =
       params.draftId === undefined
         ? chooserDraftKey(

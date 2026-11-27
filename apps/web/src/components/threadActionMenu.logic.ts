@@ -13,6 +13,7 @@ export type ThreadActionMenuId =
   | `move-project:${string}`
   | "move"
   | `move:${string}`
+  | "move-project-add"
   | "project-settings"
   | "pin"
   | "unpin"
@@ -269,17 +270,20 @@ export function buildThreadActionMenuItems(
           },
         ]
       : []),
-    ...(state.moveProjectTargets && state.moveProjectTargets.length > 0
+    ...(state.moveProjectTargets
       ? [
           {
             id: "move-project" as const,
             label: resolve(msg("Move to project")),
             icon: "folder",
             disabled: state.isRunning || !state.canMoveProject,
-            children: state.moveProjectTargets.map((target) => ({
-              id: `${MOVE_PROJECT_PREFIX}${target.id}` as const,
-              label: target.label,
-            })),
+            children: [
+              ...state.moveProjectTargets.map((target) => ({
+                id: `${MOVE_PROJECT_PREFIX}${target.id}` as const,
+                label: target.label,
+              })),
+              { id: "move-project-add" as const, label: resolve(msg("Add project…")) },
+            ],
           },
         ]
       : []),

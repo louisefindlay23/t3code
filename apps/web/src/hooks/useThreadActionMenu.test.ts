@@ -34,6 +34,7 @@ function recordEffect(action: string) {
   state.completed.resolve();
 }
 
+vi.mock("../commandPaletteBus", () => ({ openCommandPalette: vi.fn() }));
 vi.mock("../components/CustomSnoozeDialog", () => ({ requestCustomSnooze: vi.fn() }));
 vi.mock("../components/MoveThreadDialog", () => ({ openMoveThread: vi.fn() }));
 vi.mock("../state/threadMove", () => ({ threadMoveTargetsAtom: () => "move-targets" }));

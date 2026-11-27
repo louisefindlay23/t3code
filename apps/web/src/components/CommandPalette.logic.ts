@@ -86,6 +86,7 @@ export type CommandPaletteOpenIntent =
       readonly kind: "add-project";
       /** The draft a project is being picked for; one with user content moves to it. */
       readonly draftId?: DraftId;
+      readonly moveThread?: ScopedThreadRef;
     }
   | {
       readonly kind: "search";
@@ -112,7 +113,11 @@ export type CommandPaletteUiAction =
       readonly query: string;
       readonly linkedThreads?: CommandPaletteLinkedThreads;
     }
-  | { readonly _tag: "OpenAddProject"; readonly draftId?: DraftId }
+  | {
+      readonly _tag: "OpenAddProject";
+      readonly draftId?: DraftId;
+      readonly moveThread?: ScopedThreadRef;
+    }
   | { readonly _tag: "OpenNewThreadIn" }
   | { readonly _tag: "OpenChangeTheme" }
   | {
@@ -170,6 +175,7 @@ export function reduceCommandPaletteUiState(
       return openWithIntent({
         kind: "add-project",
         ...(action.draftId ? { draftId: action.draftId } : {}),
+        ...(action.moveThread ? { moveThread: action.moveThread } : {}),
       });
     case "OpenNewThreadIn":
       return openWithIntent({ kind: "new-thread-in" });
