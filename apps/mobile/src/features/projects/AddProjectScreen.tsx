@@ -797,25 +797,32 @@ function useOpenNewTaskDraft() {
   ) => {
     if (!isActiveRoute(navigation, originRoute)) return;
     const moveThread = addProjectMoveThread(navigation.getState()?.routes ?? []);
-    if (moveThread !== null && moveThread.environmentId !== params.environmentId) {
-      // A project on another machine takes the thread through the move-to-machine sheet.
-      navigation.dispatch(
-        StackActions.replace("ThreadMove", {
-          environmentId: moveThread.environmentId,
-          threadId: moveThread.id,
-          targetEnvironmentId: params.environmentId,
-          projectId: params.projectId,
-        }),
-      );
-      return;
-    }
     if (moveThread !== null) {
-      await moveThreadToProject(moveThread, params.projectId);
-      selectDetail({
-        name: "Thread",
-        params: { environmentId: moveThread.environmentId, threadId: moveThread.id },
-      });
-      return;
+      if (params.cloning !== undefined) {
+        // A project still cloning has no checkout for a moved thread to work in yet.
+        Dialog.alert(
+          m(msg("Thread not moved")),
+          m(msg("Move it to the new project once the project is ready.")),
+        );
+      } else if (moveThread.environmentId !== params.environmentId) {
+        // A project on another machine takes the thread through the move-to-machine sheet.
+        navigation.dispatch(
+          StackActions.replace("ThreadMove", {
+            environmentId: moveThread.environmentId,
+            threadId: moveThread.id,
+            targetEnvironmentId: params.environmentId,
+            projectId: params.projectId,
+          }),
+        );
+        return;
+      } else {
+        await moveThreadToProject(moveThread, params.projectId);
+        selectDetail({
+          name: "Thread",
+          params: { environmentId: moveThread.environmentId, threadId: moveThread.id },
+        });
+        return;
+      }
     }
     const chooserDraft =
       params.draftId === undefined

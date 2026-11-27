@@ -643,13 +643,25 @@ function OpenCommandPaletteDialog(props: {
     await navigate({ to: "/draft/$draftId", params: { draftId: addProjectDraftId } });
     return true;
   };
-  const openAddedProject = async (projectRef: ScopedProjectRef): Promise<void> => {
+  const openAddedProject = async (
+    projectRef: ScopedProjectRef,
+    options?: { readonly cloning?: boolean },
+  ): Promise<void> => {
     // A moved draft is keyed from the project record, so wait for it to reach this client.
     const project =
       addProjectDraftId === null && addProjectMoveThread === null
         ? null
         : await waitForProject(projectRef, 3_000).catch(() => null);
-    if (project !== null && (await moveDraftToAddedProject(project))) return;
+    // A project still cloning has no checkout for a moved thread to work in yet.
+    const canMove = !(options?.cloning && addProjectMoveThread !== null);
+    if (project !== null && canMove && (await moveDraftToAddedProject(project))) return;
+    if (addProjectMoveThread !== null) {
+      toastManager.add({
+        type: "info",
+        title: gt("Thread not moved"),
+        description: gt("Move it to the new project once the project is ready."),
+      });
+    }
     await handleNewThread(projectRef);
   };
   const createNewProject = useNewProject(openAddedProject);
@@ -2451,7 +2463,9 @@ function OpenCommandPaletteDialog(props: {
       startResult.value.projectId,
     );
     await waitForProject(projectRef, 3_000).catch(() => null);
-    const navigationResult = await settlePromise(() => openAddedProject(projectRef));
+    const navigationResult = await settlePromise(() =>
+      openAddedProject(projectRef, { cloning: true }),
+    );
     if (navigationResult._tag === "Failure") {
       const error = squashAtomCommandFailure(navigationResult);
       toastManager.add(
