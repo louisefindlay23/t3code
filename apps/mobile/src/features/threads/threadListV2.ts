@@ -162,12 +162,12 @@ export function layoutThreadListV2RowMenuActions(
   }
   return [
     ...input.direct,
-    ...input.pin,
     {
       id: "more",
       title: resolve(msg("More", { $context: "menu that holds more thread actions" })),
       image: "ellipsis.circle",
       subactions: [
+        ...input.pin,
         ...(input.reorder.length > 1
           ? [
               {

@@ -151,10 +151,10 @@ describe("layoutThreadListV2RowMenuActions", () => {
       "copy-thread-id",
       "settle",
       "snooze",
-      "unpin",
       "more",
     ]);
     expect(nested.at(-1)?.subactions?.map((action) => action.id)).toEqual([
+      "unpin",
       "arrange-menu",
       "rename",
       "regenerate-title",
@@ -170,7 +170,7 @@ describe("layoutThreadListV2RowMenuActions", () => {
       reorder: actions("arrange"),
       nested: true,
     });
-    expect(slim.at(-1)?.subactions?.[0]?.id).toBe("arrange");
+    expect(slim.at(-1)?.subactions?.[1]?.id).toBe("arrange");
   });
 });
 
