@@ -2780,6 +2780,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           !checkThreadOperations([thread], isThreadTriageAction(clicked.value))
         )
           return;
+        if (clicked.value === "move-project-add") {
+          openCommandPalette({ open: "add-project", moveThread: threadRef });
+          return;
+        }
         if (clicked.value?.startsWith(MOVE_PROJECT_PREFIX)) {
           const result = await updateThreadMetadata({
             environmentId: threadRef.environmentId,

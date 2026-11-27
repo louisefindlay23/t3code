@@ -34,6 +34,7 @@ import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { copyThreadReference } from "../lib/copyThreadReference";
 import { m } from "../i18n/messages";
 import { threadChipCopyTarget } from "@t3tools/client-runtime/thread-reference";
+import { openCommandPalette } from "../commandPaletteBus";
 import { threadEnvironment } from "../state/threads";
 import { threadTriagePermitted, useOrchestrationCommand } from "../state/use-orchestration-command";
 import { readEnvironmentScope } from "../state/session";
@@ -178,6 +179,10 @@ export function useThreadActionMenu(input: {
           m(msg("Thread action unavailable")),
           new Error(m(msg("This connection cannot change threads."))),
         );
+        return;
+      }
+      if (action === "move-project-add") {
+        openCommandPalette({ open: "add-project", moveThread: threadRef });
         return;
       }
       if (action.startsWith(MOVE_PROJECT_PREFIX)) {

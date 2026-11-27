@@ -280,6 +280,7 @@ import { Checkbox } from "./ui/checkbox";
 import { ProjectFilePicker } from "./files/ProjectFilePicker";
 import { openLinkPullRequestDialog } from "./pullRequest/LinkPullRequestDialog";
 import { canShareWithGuestAtom } from "./chat/guestShareAvailability";
+import { moveThreadAfterClone, moveThreadToAddedProject } from "../lib/moveThreadToAddedProject";
 import { openMoveThread } from "./MoveThreadDialog";
 import { openGuestShareDialog } from "./chat/guestShareDialogState";
 import { openUseInAnotherApp } from "./mcp/UseInAnotherAppDialog";
@@ -602,18 +603,46 @@ function OpenCommandPaletteDialog(props: {
   const [addProjectDraftId] = useState(() =>
     props.openIntent?.kind === "add-project" ? (props.openIntent.draftId ?? null) : null,
   );
+  // "Move to project > Add project" moves that thread into the new project instead.
+  const [addProjectMoveThread] = useState(() =>
+    props.openIntent?.kind === "add-project" ? (props.openIntent.moveThread ?? null) : null,
+  );
   const moveDraftToAddedProject = async (project: EnvironmentProject): Promise<boolean> => {
+    if (addProjectMoveThread !== null) {
+      await moveThreadToAddedProject(addProjectMoveThread, project);
+      return true;
+    }
     if (addProjectDraftId === null || !moveDraftToProject(addProjectDraftId, project)) {
       return false;
     }
     await navigate({ to: "/draft/$draftId", params: { draftId: addProjectDraftId } });
     return true;
   };
-  const openAddedProject = async (projectRef: ScopedProjectRef): Promise<void> => {
+  const openAddedProject = async (
+    projectRef: ScopedProjectRef,
+    options?: { readonly cloning?: boolean },
+  ): Promise<void> => {
     // A moved draft is keyed from the project record, so wait for it to reach this client.
     const project =
-      addProjectDraftId === null ? null : await waitForProject(projectRef, 3_000).catch(() => null);
-    if (project !== null && (await moveDraftToAddedProject(project))) return;
+      addProjectDraftId === null && addProjectMoveThread === null
+        ? null
+        : await waitForProject(projectRef, 3_000).catch(() => null);
+    if (addProjectMoveThread !== null && project !== null && options?.cloning) {
+      moveThreadAfterClone(addProjectMoveThread, project);
+      toastManager.add({
+        type: "info",
+        title: gt("Thread will move when ready"),
+        description: gt("It moves to the new project once the clone finishes."),
+      });
+    } else if (project !== null && (await moveDraftToAddedProject(project))) {
+      return;
+    } else if (addProjectMoveThread !== null) {
+      toastManager.add({
+        type: "info",
+        title: gt("Thread not moved"),
+        description: gt("Move it to the new project once the project is ready."),
+      });
+    }
     await handleNewThread(projectRef);
   };
   const createNewProject = useNewProject(openAddedProject);
@@ -2415,7 +2444,9 @@ function OpenCommandPaletteDialog(props: {
       startResult.value.projectId,
     );
     await waitForProject(projectRef, 3_000).catch(() => null);
-    const navigationResult = await settlePromise(() => openAddedProject(projectRef));
+    const navigationResult = await settlePromise(() =>
+      openAddedProject(projectRef, { cloning: true }),
+    );
     if (navigationResult._tag === "Failure") {
       const error = squashAtomCommandFailure(navigationResult);
       toastManager.add(

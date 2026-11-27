@@ -76,6 +76,7 @@ import { useSwipeRowDormant } from "../home/swipe-row-activation";
 import { ThreadSwipeable } from "../home/thread-swipe-actions";
 import { buildThreadTitleRegenerationMenuItems } from "./thread-title-regeneration-menu";
 import {
+  MOVE_PROJECT_ADD,
   MOVE_PROJECT_PREFIX,
   moveProjectTargets,
   moveThreadToProject,
@@ -1102,17 +1103,20 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
             } satisfies MenuAction,
           ]
         : []),
-      ...(moveTargets.length > 0
+      ...(thread.lineage.relationshipToParent !== "subagent"
         ? [
             {
               id: "move-project",
               title: gt("Move to project"),
               image: "folder",
               attributes: { disabled: !threadCanArchive(thread.runtime) },
-              subactions: moveTargets.map((target) => ({
-                id: `${MOVE_PROJECT_PREFIX}${target.id}`,
-                title: target.title,
-              })),
+              subactions: [
+                ...moveTargets.map((target) => ({
+                  id: `${MOVE_PROJECT_PREFIX}${target.id}`,
+                  title: target.title,
+                })),
+                { id: MOVE_PROJECT_ADD, title: gt("Add project…") },
+              ],
             } satisfies MenuAction,
           ]
         : []),
@@ -1134,6 +1138,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       gt,
       m,
       props.titleRegenerationSupported,
+      thread.lineage.relationshipToParent,
       thread.runtime,
       isRegeneratingTitle,
     ],
@@ -1277,6 +1282,12 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       if (nativeEvent.event === "rename") handleRename();
       if (nativeEvent.event === "regenerate-title") handleRegenerateTitle();
       if (nativeEvent.event === "turn-into-project") void turnThreadIntoProject(thread);
+      if (nativeEvent.event === MOVE_PROJECT_ADD) {
+        navigation.navigate("AddProject", {
+          environmentId: thread.environmentId,
+          moveThreadId: thread.id,
+        });
+      }
       if (nativeEvent.event.startsWith(MOVE_PROJECT_PREFIX)) {
         void moveThreadToProject(thread, nativeEvent.event.slice(MOVE_PROJECT_PREFIX.length));
       }

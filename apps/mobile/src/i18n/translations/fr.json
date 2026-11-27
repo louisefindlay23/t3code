@@ -5725,5 +5725,8 @@
   "ad208e3e32c85029": "Tout masquer",
   "3328503592789bed": "Zen",
   "856812e7e1fc445e": "Appels d’outils dans la discussion",
-  "8d545d54c0a9e950": "Masque les commandes, modifications et recherches lancées par les agents. Masquer les réussis garde les échecs. Zen n’affiche que les réponses finales. Les approbations, questions et erreurs s’affichent toujours."
+  "8d545d54c0a9e950": "Masque les commandes, modifications et recherches lancées par les agents. Masquer les réussis garde les échecs. Zen n’affiche que les réponses finales. Les approbations, questions et erreurs s’affichent toujours.",
+  "1e2835c9878b9bab": "Ajouter un projet…",
+  "7bbe4d815b395d6f": "Le fil sera déplacé une fois prêt",
+  "9b813bb618d8ec11": "Il sera déplacé vers le nouveau projet une fois le clonage terminé."
 }

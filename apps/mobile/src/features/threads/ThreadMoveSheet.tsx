@@ -74,7 +74,13 @@ async function exportSnapshot(
     : { status: "failed", failure: squashAtomCommandFailure(result) };
 }
 
-type ThreadMoveParams = { readonly environmentId: EnvironmentId; readonly threadId: ThreadId };
+type ThreadMoveParams = {
+  readonly environmentId: EnvironmentId;
+  readonly threadId: ThreadId;
+  /** A target machine and project already chosen, such as one just added for this thread. */
+  readonly targetEnvironmentId?: EnvironmentId;
+  readonly projectId?: ProjectId;
+};
 
 export function ThreadMoveSheet({ route }: StaticScreenProps<ThreadMoveParams>) {
   const gt = useGT();
@@ -92,7 +98,9 @@ export function ThreadMoveSheet({ route }: StaticScreenProps<ThreadMoveParams>) 
     thread === null ? null : { environmentId, projectId: thread.projectId },
   );
   const targets = useAtomValue(threadMoveTargetsAtom(environmentId));
-  const [chosenEnvironmentId, setChosenEnvironmentId] = useState<EnvironmentId | null>(null);
+  const [chosenEnvironmentId, setChosenEnvironmentId] = useState<EnvironmentId | null>(
+    route.params.targetEnvironmentId ?? null,
+  );
   const target =
     targets.find((candidate) => candidate.environmentId === chosenEnvironmentId) ??
     (targets.length === 1 ? targets[0]! : null);
@@ -106,7 +114,9 @@ export function ThreadMoveSheet({ route }: StaticScreenProps<ThreadMoveParams>) 
     [targetProjects],
   );
   const matchingProject = findMoveTargetProject(sourceProject, openProjects);
-  const [chosenProjectId, setChosenProjectId] = useState<ProjectId | null>(null);
+  const [chosenProjectId, setChosenProjectId] = useState<ProjectId | null>(
+    route.params.projectId ?? null,
+  );
   const project =
     openProjects.find((candidate) => candidate.id === chosenProjectId) ?? matchingProject;
 
