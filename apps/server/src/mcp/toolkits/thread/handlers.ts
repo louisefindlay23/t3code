@@ -193,7 +193,7 @@ export const layer = McpToolAccess.toLayer(ThreadToolkit, {
           return yield* new OrchestratorMcpFailure({
             code: "invalid_request",
             message:
-              "A thread cannot move itself while it runs. Ask the user to use Move to… in this thread's menu once the turn ends.",
+              "A thread cannot move itself while it runs. Ask the user to use Move to Environment in this thread's menu once the turn ends.",
           });
         }
         if (input.targetEnvironmentId === scope.environmentId) {

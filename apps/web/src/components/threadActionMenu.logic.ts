@@ -302,7 +302,7 @@ export function buildThreadActionMenuItems(
           {
             id: "move" as const,
             label: resolve(
-              msg("Move to…", { $context: "submenu of machines to move the thread to" }),
+              msg("Move to Environment", { $context: "submenu of machines to move the thread to" }),
             ),
             icon: "arrow-right-left",
             // Export refuses a running thread, same as archive.

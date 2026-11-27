@@ -63,7 +63,7 @@ Customize presets in **Settings → Threads → Snooze options** (durations like
 
 ## Move a thread to another machine
 
-When this app is connected to more than one environment, choose **Move to…** in a thread's
+When this app is connected to more than one environment, choose **Move to Environment** in a thread's
 menu (**Move to another machine…** on mobile), or the move action in the command palette, and
 pick a machine. On that machine, pick
 the project to move into; T3 Code suggests the one for the same repository. If the repository
