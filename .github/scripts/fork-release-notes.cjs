@@ -13,7 +13,13 @@ function parse(log) {
     bySection.set(match[1], [...(bySection.get(match[1]) ?? []), match[2]]);
   }
   return SECTIONS.filter((name) => bySection.has(name))
-    .map((name) => `### ${name}\n${bySection.get(name).map((text) => `- ${text}`).join("\n")}`)
+    .map(
+      (name) =>
+        `### ${name}\n${bySection
+          .get(name)
+          .map((text) => `- ${text}`)
+          .join("\n")}`,
+    )
     .join("\n\n");
 }
 
@@ -21,7 +27,13 @@ if (require.main === module) {
   const [base, head = "HEAD"] = process.argv.slice(2);
   const log = execFileSync(
     "git",
-    ["log", "--no-merges", "--reverse", "--format=%(trailers:key=Release-Note,valueonly)", `${base}..${head}`],
+    [
+      "log",
+      "--no-merges",
+      "--reverse",
+      "--format=%(trailers:key=Release-Note,valueonly)",
+      `${base}..${head}`,
+    ],
     { encoding: "utf8" },
   );
   console.log(parse(log));
