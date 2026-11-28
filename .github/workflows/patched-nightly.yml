@@ -731,7 +731,7 @@ jobs:
     needs: [resolve, mobile_native_check]
     if: needs.mobile_native_check.outputs.build == 'true'
     environment: release-signing
-    runs-on: macos-latest
+    runs-on: xcode-27
     timeout-minutes: 90
     permissions:
       contents: write
@@ -748,6 +748,15 @@ jobs:
         with:
           fetch-depth: 0
           ref: refs/tags/${{ needs.resolve.outputs.release_tag }}
+
+      # App Store Connect rejects uploads built with an SDK older than iOS 27 (TMS-90725).
+      - name: Select Xcode 27
+        run: |
+          xcode="$(/bin/ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -n1)"
+          [ -n "$xcode" ] || { echo "No Xcode 27 on this runner; iOS 27 SDK is required" >&2; exit 1; }
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -q 'iphoneos27' || { echo "iOS 27 SDK missing" >&2; exit 1; }
 
       - name: Load official upstream T3 Connect settings
         run: cp .env.example .env
